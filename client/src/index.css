@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes progress-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
+
+/* Responsive helpers for the multi-column page layouts. */
+@media (max-width: 900px) {
+  .cc-nav-links { display: none !important; }
+  .cc-hero { grid-template-columns: 1fr !important; padding-top: 120px !important; }
+  .cc-hero-visual { display: none !important; }
+  .cc-services-grid { grid-template-columns: 1fr 1fr !important; }
+  .cc-steps-grid { grid-template-columns: 1fr 1fr !important; }
+  .cc-reviews-grid { grid-template-columns: 1fr !important; }
+  .cc-faq-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
+  .cc-footer { grid-template-columns: 1fr 1fr !important; }
+  .cc-menu-grid { grid-template-columns: 1fr !important; }
+  .cc-cart-sidebar { display: none !important; }
+}
+
+@media (max-width: 600px) {
+  .cc-services-grid { grid-template-columns: 1fr !important; }
+  .cc-steps-grid { grid-template-columns: 1fr !important; }
+  .cc-footer { grid-template-columns: 1fr !important; }
+}
