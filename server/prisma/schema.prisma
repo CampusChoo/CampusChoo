@@ -80,7 +80,9 @@ model MenuItem {
   description String?
   price       Decimal  @db.Decimal(10, 2)
   category    String
-  imageUrl    String?
+  imageUrl    String?  // primary cover image (kept for backward compat)
+  images      String[] @default([])  // additional gallery images
+  videoUrl    String?  // single video URL (YouTube/Vimeo link or .mp4)
   isAvailable Boolean  @default(true)
 
   orderItems OrderItem[]

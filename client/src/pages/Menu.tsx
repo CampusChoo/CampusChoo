@@ -118,14 +118,14 @@ export default function Menu() {
   }
 
   return (
-    <div style={{ background: CREAM, minHeight: '100vh', color: TEXT, fontFamily: "'DM Sans', sans-serif", overflowX: 'hidden' }}>
+    <div style={{ background: CREAM, minHeight: '100vh', color: TEXT, fontFamily: "'Inter', sans-serif", overflowX: 'hidden' }}>
       <Navbar variant="cream" />
 
       <div style={{ paddingTop: 64, display: 'grid', gridTemplateColumns: '1fr 320px', minHeight: '100vh' }} className="cc-menu-grid">
         {/* Main */}
         <main style={{ padding: '36px 40px 80px', minWidth: 0 }}>
           <div style={{ marginBottom: 28 }}>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: 36, fontWeight: 800, letterSpacing: -1.5, color: '#0F0D0A', marginBottom: 4 }}>
+            <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 36, fontWeight: 800, letterSpacing: -1.5, color: '#0F0D0A', marginBottom: 4 }}>
               Order Food 🍽️
             </h1>
             <p style={{ fontSize: 14, color: MUTED }}>
@@ -143,7 +143,7 @@ export default function Menu() {
               style={{
                 width: '100%', padding: '12px 16px 12px 44px',
                 border: `1.5px solid ${BORDER}`, borderRadius: 14,
-                fontSize: 14, fontFamily: "'DM Sans', sans-serif",
+                fontSize: 14, fontFamily: "'Inter', sans-serif",
                 color: TEXT, background: '#fff', outline: 'none',
               }}
             />
@@ -165,7 +165,7 @@ export default function Menu() {
                     background: v.id === activeVendorId ? '#0F0D0A' : '#fff',
                     cursor: 'pointer', fontSize: 13, fontWeight: 500,
                     color: v.id === activeVendorId ? '#fff' : MUTED,
-                    fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+                    fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap',
                   }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: v.isOpen ? '#1A7A3C' : '#9A8E85' }} />
                     {v.storeName}
@@ -191,7 +191,7 @@ export default function Menu() {
               {/* Active vendor section */}
               {activeVendor && (
                 <div style={{ marginBottom: 24 }}>
-                  <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 800, color: '#0F0D0A', letterSpacing: '-0.5px', marginBottom: 4 }}>
+                  <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 800, color: '#0F0D0A', letterSpacing: '-0.5px', marginBottom: 4 }}>
                     {activeVendor.storeName}
                   </h2>
                   <p style={{ fontSize: 12, color: MUTED }}>
@@ -248,7 +248,7 @@ function CatPill({ active, onClick, children }: { active: boolean; onClick: () =
       border: `1px solid ${active ? ORANGE : BORDER}`,
       background: active ? ORANGE : '#fff',
       cursor: 'pointer', fontSize: 13, fontWeight: 500,
-      color: active ? '#fff' : MUTED, fontFamily: "'DM Sans', sans-serif",
+      color: active ? '#fff' : MUTED, fontFamily: "'Inter', sans-serif",
     }}>{children}</button>
   );
 }
@@ -271,7 +271,7 @@ function FoodCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
       </div>
       <div style={{ padding: '14px 16px 16px' }}>
         <div style={{
-          fontFamily: "'Syne', sans-serif", fontSize: 15, fontWeight: 700,
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700,
           color: '#0F0D0A', marginBottom: 3, lineHeight: 1.2,
         }}>{item.name}</div>
         {item.description && (
@@ -280,7 +280,7 @@ function FoodCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
           }}>{item.description}</div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-          <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 800, color: ORANGE }}>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 800, color: ORANGE }}>
             GHS {Number(item.price).toFixed(2)}
           </div>
           <button onClick={onAdd} style={{
@@ -307,7 +307,7 @@ function CartSidebar({ onCheckout }: { onCheckout: () => void }) {
       display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 50,
     }} className="cc-cart-sidebar">
       <div style={{ padding: '24px 24px 16px', borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 800, color: '#0F0D0A' }}>
+        <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 800, color: '#0F0D0A' }}>
           Your Order
         </div>
         <div style={{ fontSize: 12, color: MUTED }}>
@@ -343,7 +343,7 @@ function CartSidebar({ onCheckout }: { onCheckout: () => void }) {
                   <button onClick={() => cart.setQty(line.menuItemId, line.qty + 1)} style={qtyBtnStyle}>+</button>
                 </div>
               </div>
-              <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 14, fontWeight: 700, color: ORANGE, flexShrink: 0 }}>
+              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 14, fontWeight: 700, color: ORANGE, flexShrink: 0 }}>
                 GHS {(Number(line.price) * line.qty).toFixed(0)}
               </div>
             </div>
@@ -358,7 +358,7 @@ function CartSidebar({ onCheckout }: { onCheckout: () => void }) {
             <Row label="Delivery fee" value={`GHS ${DELIVERY_FEE}`} />
             <div style={{
               display: 'flex', justifyContent: 'space-between',
-              fontFamily: "'Syne', sans-serif", fontSize: 17, fontWeight: 800,
+              fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 800,
               color: '#0F0D0A', paddingTop: 10, borderTop: `1px solid ${BORDER}`, marginTop: 6,
             }}>
               <span>Total</span>
@@ -368,7 +368,7 @@ function CartSidebar({ onCheckout }: { onCheckout: () => void }) {
           <button onClick={onCheckout} style={{
             width: '100%', padding: 16,
             background: ORANGE, color: '#fff', border: 'none', borderRadius: 14,
-            fontFamily: "'Syne', sans-serif", fontSize: 16, fontWeight: 700,
+            fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
             Proceed to Checkout →
@@ -387,7 +387,7 @@ const qtyBtnStyle: React.CSSProperties = {
   border: `1px solid ${BORDER}`, background: CREAM,
   fontSize: 14, cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
-  color: TEXT, fontFamily: "'DM Sans', sans-serif",
+  color: TEXT, fontFamily: "'Inter', sans-serif",
 };
 
 function Row({ label, value }: { label: string; value: string }) {

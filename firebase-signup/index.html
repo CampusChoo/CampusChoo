@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="auth-card">
+    <h1>Create your account</h1>
+    <p class="subtitle">Sign up in seconds.</p>
+
+    <form id="signup-form" novalidate>
+      <div class="field">
+        <label for="name">Full name</label>
+        <input id="name" type="text" autocomplete="name" required />
+        <span class="error" id="name-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required />
+        <span class="error" id="email-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input id="phone" type="tel" autocomplete="tel" required placeholder="e.g. +233551234567" />
+        <span class="error" id="phone-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="new-password" required minlength="6" />
+        <span class="error" id="password-error"></span>
+      </div>
+
+      <button type="submit" id="submit-btn">Create Account</button>
+
+      <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+:root {
+  --bg: #0F172A;
+  --card: #1E293B;
+  --border: #334155;
+  --accent: #3B82F6;
+  --accent-hover: #2563EB;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --error: #EF4444;
+  --success: #10B981;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.auth-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0 0 2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.field { margin-bottom: 1rem; }
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input::placeholder { color: #64748B; }
+input:focus { border-color: var(--accent); }
+input.invalid { border-color: var(--error); }
+
+.error {
+  display: block;
+  min-height: 1rem;
+  font-size: 0.8rem;
+  color: var(--error);
+  margin-top: 0.3rem;
+}
+
+#submit-btn {
+  width: 100%;
+  padding: 0.85rem;
+  margin-top: 0.5rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+#submit-btn:hover:not(:disabled) { background: var(--accent-hover); }
+#submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.form-status {
+  margin: 1rem 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  min-height: 1.2rem;
+}
+
+.form-status.success { color: var(--success); }
+.form-status.error   { color: var(--error); }

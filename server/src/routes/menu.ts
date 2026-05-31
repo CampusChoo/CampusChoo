@@ -38,12 +38,14 @@ router.post(
   requireRole('VENDOR', 'ADMIN'),
   async (req: Request, res: Response) => {
     const { id: vendorId } = req.params;
-    const { name, description, price, category, imageUrl } = req.body as {
+    const { name, description, price, category, imageUrl, images, videoUrl } = req.body as {
       name?: string;
       description?: string;
       price?: number | string;
       category?: string;
       imageUrl?: string;
+      images?: string[];
+      videoUrl?: string;
     };
 
     if (!name || !category || price == null) {
@@ -65,6 +67,10 @@ router.post(
       }
     }
 
+    const cleanImages = Array.isArray(images)
+      ? images.map((u) => String(u).trim()).filter(Boolean)
+      : [];
+
     const item = await prisma.menuItem.create({
       data: {
         vendorId,
@@ -73,6 +79,8 @@ router.post(
         price: priceNum,
         category: category.trim(),
         imageUrl: imageUrl?.trim() || null,
+        images: cleanImages,
+        videoUrl: videoUrl?.trim() || null,
       },
     });
 
@@ -89,12 +97,14 @@ router.patch(
   requireRole('VENDOR', 'ADMIN'),
   async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { name, description, price, category, imageUrl, isAvailable } = req.body as {
+    const { name, description, price, category, imageUrl, images, videoUrl, isAvailable } = req.body as {
       name?: string;
       description?: string | null;
       price?: number | string;
       category?: string;
       imageUrl?: string | null;
+      images?: string[];
+      videoUrl?: string | null;
       isAvailable?: boolean;
     };
 
@@ -118,6 +128,8 @@ router.patch(
     if (description !== undefined) data.description = description?.toString().trim() || null;
     if (category !== undefined)    data.category = category.trim();
     if (imageUrl !== undefined)    data.imageUrl = imageUrl?.toString().trim() || null;
+    if (videoUrl !== undefined)    data.videoUrl = videoUrl?.toString().trim() || null;
+    if (Array.isArray(images))     data.images = images.map((u) => String(u).trim()).filter(Boolean);
     if (isAvailable !== undefined) data.isAvailable = Boolean(isAvailable);
 
     if (price !== undefined) {

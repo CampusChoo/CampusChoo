@@ -23,14 +23,76 @@ router.get(
   authenticateToken,
   requireRole('VENDOR'),
   async (req: Request, res: Response) => {
-    const vendor = await prisma.vendor.findUnique({
+    let vendor = await prisma.vendor.findUnique({
       where: { userId: req.user!.id },
     });
+
+    // Lazy-create: any vendor user without a Vendor row gets one materialised
+    // here. Heals accounts created before the registration flow auto-created
+    // the Vendor row alongside the User.
     if (!vendor) {
-      res.status(404).json({ message: 'No vendor profile linked to this account.' });
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { name: true },
+      });
+      vendor = await prisma.vendor.create({
+        data: {
+          userId: req.user!.id,
+          storeName: user?.name ? `${user.name}'s Kitchen` : 'My Store',
+          description: '',
+          location: '',
+          cuisine: [],
+          isOpen: false,
+        },
+      });
+    }
+
+    res.json(vendor);
+  },
+);
+
+// ─── PATCH /api/vendors/:id ───────────────────────────────────────────────────
+// Update editable profile fields. Vendor must own the record (admin can edit any).
+// Accepts any subset of: storeName, description, location, imageUrl, cuisine.
+
+router.patch(
+  '/vendors/:id',
+  authenticateToken,
+  requireRole('VENDOR', 'ADMIN'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const vendor = await prisma.vendor.findUnique({ where: { id } });
+    if (!vendor) {
+      res.status(404).json({ message: 'Vendor not found.' });
       return;
     }
-    res.json(vendor);
+
+    if (req.user!.role === 'VENDOR' && vendor.userId !== req.user!.id) {
+      res.status(403).json({ message: 'You do not own this vendor.' });
+      return;
+    }
+
+    const { storeName, description, location, imageUrl, cuisine } = req.body ?? {};
+    const data: Record<string, unknown> = {};
+
+    if (typeof storeName === 'string' && storeName.trim().length > 0) {
+      data.storeName = storeName.trim();
+    }
+    if (typeof description === 'string') data.description = description;
+    if (typeof location === 'string') data.location = location;
+    if (imageUrl === null || typeof imageUrl === 'string') data.imageUrl = imageUrl;
+    if (Array.isArray(cuisine)) {
+      data.cuisine = cuisine.filter((c) => typeof c === 'string' && c.trim().length > 0);
+    }
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ message: 'No editable fields supplied.' });
+      return;
+    }
+
+    const updated = await prisma.vendor.update({ where: { id }, data });
+    res.json(updated);
   },
 );
 

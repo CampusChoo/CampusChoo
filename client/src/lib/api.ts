@@ -29,7 +29,12 @@ async function tryRefresh(): Promise<boolean> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      // Refresh failed — tokens are dead. Clear them so the user can log in fresh
+      // instead of seeing "Access token expired" on every page load forever.
+      clearTokens();
+      return false;
+    }
     const data = await res.json();
     setTokens(data.accessToken, data.refreshToken);
     return true;
@@ -44,7 +49,10 @@ export async function api(path: string, init: RequestInit = {}, withAuth = true)
     const token = getAccessToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  // FormData sets its own multipart/form-data boundary; only default JSON for other bodies.
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   let res = await fetch(path, { ...init, headers });
 

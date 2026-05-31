@@ -15,7 +15,7 @@ const BORDER = 'rgba(0,0,0,0.08)';
 
 export default function Home() {
   return (
-    <div style={{ background: CREAM, color: TEXT, fontFamily: "'DM Sans', sans-serif", overflowX: 'hidden' }}>
+    <div style={{ background: CREAM, color: TEXT, fontFamily: "'Inter', sans-serif", overflowX: 'hidden' }}>
       <Navbar variant="cream" />
       <Hero />
       <Trust />
@@ -62,7 +62,7 @@ function Hero() {
           <span style={{ fontSize: 8 }}>●</span> Now live on UMaT, Tarkwa
         </div>
         <h1 style={{
-          fontFamily: "'Syne', sans-serif", fontSize: 'clamp(40px, 5vw, 72px)',
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 'clamp(40px, 5vw, 72px)',
           fontWeight: 800, lineHeight: 1.05, color: '#fff', letterSpacing: '-2px',
           marginBottom: 20,
         }}>
@@ -99,39 +99,7 @@ function Hero() {
       </div>
 
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }} className="cc-hero-visual">
-        <div style={{
-          background: DARK2, border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 24, padding: 28,
-          width: '100%', maxWidth: 360,
-          position: 'relative', zIndex: 2,
-        }}>
-          <div style={{
-            width: '100%', height: 200, borderRadius: 16,
-            background: 'linear-gradient(135deg, #2a1f1a 0%, #3d2b20 50%, #2a1f1a 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 64, marginBottom: 20, position: 'relative', overflow: 'hidden',
-          }}>🍛</div>
-          <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-            Jollof Rice + Chicken
-          </div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 16 }}>
-            Mama Ama's Kitchen · Block C
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 22, fontWeight: 800, color: ORANGE }}>GHS 28</div>
-            <div style={{
-              background: 'rgba(249,193,58,0.12)', border: '1px solid rgba(249,193,58,0.25)',
-              color: YELLOW, fontSize: 12, fontWeight: 500,
-              padding: '4px 12px', borderRadius: 999,
-            }}>⏱ ~18 min</div>
-            <Link to="/menu" style={{
-              width: 40, height: 40, borderRadius: '50%',
-              background: ORANGE, color: '#fff', textDecoration: 'none',
-              fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>+</Link>
-          </div>
-        </div>
+        <HeroFoodCard />
         <div style={{
           position: 'absolute', top: '10%', right: '-10%',
           background: DARK2, border: '1px solid rgba(255,255,255,0.1)',
@@ -155,10 +123,110 @@ function Hero() {
   );
 }
 
+// Tap/click anywhere on the visual to cycle through dishes. Images live in
+// client/public/food/ and are served at /food/<file> by Vite.
+const FOOD_ITEMS: { name: string; vendor: string; image: string }[] = [
+  { name: 'Jollof Rice + Chicken',         vendor: "Mama Ama's Kitchen · Block C",   image: '/food/jollof.jpg' },
+  { name: 'Waakye + Stew',                 vendor: 'Auntie Akos · SRC Cafeteria',    image: '/food/waakye.webp' },
+  { name: 'Fufu & Light Soup',             vendor: "Maa Yaa's Joint · Hostel Jct",   image: '/food/fufu.jpg' },
+  { name: 'Banku & Tilapia',               vendor: 'Coastal Bites · Faculty Block',  image: '/food/banku-tilapia.jpg' },
+  { name: 'Gob3 (Beans, Gari, Plantain)',  vendor: "Student's Plug · Tarkwa Main",   image: '/food/gob3.webp' },
+];
+
+function HeroFoodCard() {
+  const [index, setIndex] = useState(0);
+  const item = FOOD_ITEMS[index];
+  const advance = () => setIndex((i) => (i + 1) % FOOD_ITEMS.length);
+
+  return (
+    <div
+      onClick={advance}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); advance(); } }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${item.name}. Tap to see another dish.`}
+      title="Tap to see another dish"
+      style={{
+        background: DARK2, border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 24, padding: 28,
+        width: '100%', maxWidth: 360,
+        position: 'relative', zIndex: 2,
+        cursor: 'pointer', userSelect: 'none',
+        transition: 'transform 0.25s ease, border-color 0.25s ease',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'rgba(244,82,30,0.35)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+    >
+      <div style={{
+        width: '100%', height: 220, borderRadius: 16,
+        marginBottom: 20, position: 'relative', overflow: 'hidden',
+        background: '#0F0D0A',
+      }}>
+        <img
+          key={item.image}
+          src={item.image}
+          alt={item.name}
+          className="cc-food-pop"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+        {/* Tap-to-cycle hint chip */}
+        <div style={{
+          position: 'absolute', top: 10, right: 10,
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)',
+          color: '#fff', fontSize: 11, fontWeight: 600,
+          padding: '4px 10px', borderRadius: 999,
+          letterSpacing: '0.4px',
+        }}>
+          👆 Tap for more
+        </div>
+        {/* Dot indicator */}
+        <div style={{
+          position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', gap: 5,
+        }}>
+          {FOOD_ITEMS.map((_, i) => (
+            <span key={i} style={{
+              width: i === index ? 18 : 6, height: 6, borderRadius: 999,
+              background: i === index ? ORANGE : 'rgba(255,255,255,0.45)',
+              transition: 'width 0.3s ease, background 0.3s ease',
+            }} />
+          ))}
+        </div>
+      </div>
+      <div key={`name-${index}`} className="cc-food-pop" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+        {item.name}
+      </div>
+      <div key={`vendor-${index}`} className="cc-food-pop" style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 16 }}>
+        {item.vendor}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div key={`price-${index}`} className="cc-food-pop" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 800, color: ORANGE }}>
+          GHS 30
+        </div>
+        <div style={{
+          background: 'rgba(249,193,58,0.12)', border: '1px solid rgba(249,193,58,0.25)',
+          color: YELLOW, fontSize: 12, fontWeight: 500,
+          padding: '4px 12px', borderRadius: 999,
+        }}>⏱ ~18 min</div>
+        <Link
+          to="/menu"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: ORANGE, color: '#fff', textDecoration: 'none',
+            fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >+</Link>
+      </div>
+    </div>
+  );
+}
+
 function Stat({ n, l }: { n: string; l: string }) {
   return (
     <div>
-      <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: -1 }}>{n}</div>
+      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: -1 }}>{n}</div>
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: 0.6 }}>{l}</div>
     </div>
   );
@@ -232,7 +300,7 @@ function Services() {
                 borderRadius: '0 20px 0 120px', background: s.accent, opacity: 0.08,
               }} />
               <div style={{ fontSize: 36, marginBottom: 20, display: 'block' }}>{s.icon}</div>
-              <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 10, color: s.featured ? '#fff' : DARK }}>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 10, color: s.featured ? '#fff' : DARK }}>
                 {s.title}
               </h3>
               <p style={{ fontSize: 14, color: s.featured ? 'rgba(255,255,255,0.5)' : MUTED, lineHeight: 1.65 }}>
@@ -287,12 +355,12 @@ function HowItWorks() {
           {steps.map((s) => (
             <div key={s.n} style={{ background: DARK, padding: '36px 28px', position: 'relative' }}>
               <span style={{
-                fontFamily: "'Syne', sans-serif", fontSize: 64, fontWeight: 800,
+                fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800,
                 color: 'rgba(255,255,255,0.05)',
                 position: 'absolute', top: 12, right: 20, lineHeight: 1,
               }}>{s.n}</span>
               <span style={{ fontSize: 32, marginBottom: 16, display: 'block' }}>{s.icon}</span>
-              <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 8 }}>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 8 }}>
                 {s.title}
               </h3>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>{s.desc}</p>
@@ -322,7 +390,7 @@ function Reviews() {
             <SectionHeading>Loved by students<br />and staff alike.</SectionHeading>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 64, fontWeight: 800, color: DARK, letterSpacing: -3, lineHeight: 1 }}>4.8</div>
+            <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: DARK, letterSpacing: -3, lineHeight: 1 }}>4.8</div>
             <div style={{ color: YELLOW, fontSize: 18, letterSpacing: 2, margin: '4px 0' }}>★★★★★</div>
             <div style={{ fontSize: 13, color: MUTED }}>from 340+ reviews</div>
           </div>
@@ -346,7 +414,7 @@ function Reviews() {
                   fontSize: 18, fontWeight: 700,
                   background: r.highlight ? 'rgba(255,255,255,0.2)' : 'rgba(244,82,30,0.1)',
                   color: r.highlight ? '#fff' : ORANGE,
-                  fontFamily: "'Syne', sans-serif", flexShrink: 0,
+                  fontFamily: "'Bricolage Grotesque', sans-serif", flexShrink: 0,
                 }}>{r.avatar}</div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, color: r.highlight ? '#fff' : DARK }}>{r.name}</div>
@@ -403,7 +471,7 @@ function FAQ() {
                 width: '100%', padding: '20px 24px',
                 background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                fontSize: 15, fontWeight: 500, color: DARK, fontFamily: "'DM Sans', sans-serif",
+                fontSize: 15, fontWeight: 500, color: DARK, fontFamily: "'Inter', sans-serif",
               }}>
                 {item.q}
                 <span style={{
@@ -442,7 +510,7 @@ function FinalCTA() {
           Ready to eat?
         </div>
         <h2 style={{
-          fontFamily: "'Syne', sans-serif", fontSize: 'clamp(40px, 6vw, 80px)',
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 'clamp(40px, 6vw, 80px)',
           fontWeight: 800, lineHeight: 1, letterSpacing: -3, color: '#fff',
           marginBottom: 20,
         }}>
@@ -484,7 +552,7 @@ function Footer() {
         gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 40,
       }} className="cc-footer">
         <div>
-          <Link to="/" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 20, color: '#fff', textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>
+          <Link to="/" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 20, color: '#fff', textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>
             Campus<span style={{ color: ORANGE }}>Choo</span>
           </Link>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, maxWidth: 240 }}>
@@ -556,7 +624,7 @@ function SectionLabel({ children, color }: { children: React.ReactNode; color: s
 function SectionHeading({ children, dark }: { children: React.ReactNode; dark?: boolean }) {
   return (
     <h2 style={{
-      fontFamily: "'Syne', sans-serif", fontSize: 'clamp(32px, 4vw, 52px)',
+      fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 'clamp(32px, 4vw, 52px)',
       fontWeight: 800, lineHeight: 1.1, letterSpacing: -1.5,
       color: dark ? '#fff' : DARK,
       maxWidth: 580, marginBottom: 16,

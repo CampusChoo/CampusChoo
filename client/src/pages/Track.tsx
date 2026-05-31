@@ -197,7 +197,7 @@ export default function Track() {
   return (
     <div style={{
       background: BG, minHeight: '100vh',
-      fontFamily: "'DM Sans', system-ui, sans-serif",
+      fontFamily: "'Inter', system-ui, sans-serif",
       color: '#fff',
     }}>
       {/* ── Header ── */}
@@ -215,7 +215,7 @@ export default function Track() {
           }}
         >←</button>
         <h1 style={{
-          fontFamily: "'Syne', sans-serif", fontWeight: 800,
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800,
           fontSize: '1.25rem', color: ORANGE, margin: 0, letterSpacing: '-0.02em',
         }}>CampusChoo</h1>
         <span style={{ color: '#888', fontSize: '0.8125rem', marginLeft: 'auto' }}>
@@ -236,7 +236,7 @@ export default function Track() {
               flex: 1, background: '#111', border: '1.5px solid #222',
               borderRadius: '0.75rem', color: '#fff',
               padding: '0.8125rem 1rem', fontSize: '0.9375rem',
-              outline: 'none', fontFamily: "'DM Sans', sans-serif",
+              outline: 'none', fontFamily: "'Inter', sans-serif",
               letterSpacing: '0.02em',
             }}
             onFocus={(e) => (e.currentTarget.style.borderColor = ORANGE)}
@@ -250,7 +250,7 @@ export default function Track() {
               borderRadius: '0.75rem', padding: '0.8125rem 1.5rem',
               fontWeight: 700, fontSize: '0.9375rem',
               cursor: loading ? 'wait' : 'pointer',
-              fontFamily: "'Syne', sans-serif", whiteSpace: 'nowrap',
+              fontFamily: "'Bricolage Grotesque', sans-serif", whiteSpace: 'nowrap',
               opacity: loading ? 0.6 : 1,
               transition: 'opacity 0.2s, transform 0.1s',
             }}
@@ -295,7 +295,7 @@ export default function Track() {
                     ORDER ID
                   </p>
                   <h2 style={{
-                    fontFamily: "'Syne', sans-serif", fontWeight: 800,
+                    fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800,
                     fontSize: '1.5rem', color: ORANGE, margin: 0,
                     letterSpacing: '-0.01em',
                   }}>
@@ -389,7 +389,7 @@ export default function Track() {
                           lineHeight: 1.2, padding: '0 2px',
                           color: done ? ORANGE : active ? '#fff' : '#4a4543',
                           fontWeight: active ? 700 : done ? 600 : 400,
-                          fontFamily: active ? "'Syne', sans-serif" : "'DM Sans', sans-serif",
+                          fontFamily: active ? "'Bricolage Grotesque', sans-serif" : "'Inter', sans-serif",
                         }}>
                           {step.label}
                         </p>
@@ -422,7 +422,7 @@ export default function Track() {
                 <div>
                   <p style={{
                     margin: 0, color: ORANGE, fontWeight: 700, fontSize: '1.0625rem',
-                    fontFamily: "'Syne', sans-serif", letterSpacing: '-0.01em',
+                    fontFamily: "'Bricolage Grotesque', sans-serif", letterSpacing: '-0.01em',
                   }}>
                     {eta > 0 ? `~${eta} minute${eta !== 1 ? 's' : ''} away` : 'Arriving very soon!'}
                   </p>
@@ -444,7 +444,7 @@ export default function Track() {
                 <div>
                   <p style={{
                     margin: 0, color: '#22c55e', fontWeight: 700, fontSize: '1.0625rem',
-                    fontFamily: "'Syne', sans-serif",
+                    fontFamily: "'Bricolage Grotesque', sans-serif",
                   }}>
                     Order Delivered!
                   </p>
@@ -503,7 +503,7 @@ export default function Track() {
                     width: '48px', height: '48px', borderRadius: '50%',
                     background: `linear-gradient(135deg, ${ORANGE}, #ff8c42)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: "'Syne', sans-serif", fontWeight: 800,
+                    fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800,
                     fontSize: '1rem', color: '#fff', flexShrink: 0,
                     boxShadow: `0 4px 12px ${ORANGE}44`,
                   }}>
@@ -532,7 +532,7 @@ export default function Track() {
                         padding: '0.5rem 0.875rem', textDecoration: 'none',
                         fontSize: '0.8125rem', fontWeight: 700,
                         display: 'inline-flex', alignItems: 'center', gap: '0.3125rem',
-                        fontFamily: "'Syne', sans-serif",
+                        fontFamily: "'Bricolage Grotesque', sans-serif",
                       }}
                     >
                       📞 Call
@@ -548,7 +548,7 @@ export default function Track() {
               borderRadius: '1rem', padding: '1.25rem', marginBottom: '1rem',
             }}>
               <p style={{
-                margin: '0 0 1rem', fontFamily: "'Syne', sans-serif",
+                margin: '0 0 1rem', fontFamily: "'Bricolage Grotesque', sans-serif",
                 fontWeight: 700, fontSize: '0.9375rem', letterSpacing: '-0.01em',
               }}>
                 Your Order
@@ -600,7 +600,7 @@ export default function Track() {
                   marginTop: '0.25rem', paddingTop: '0.5rem',
                   borderTop: '1px dashed #1f1c1a',
                 }}>
-                  <span style={{ fontFamily: "'Syne', sans-serif" }}>Total</span>
+                  <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Total</span>
                   <span style={{ color: ORANGE }}>{ghs(order.totalAmount)}</span>
                 </div>
               </div>
@@ -652,7 +652,7 @@ export default function Track() {
                   fontSize: '0.75rem', fontWeight: 600,
                   display: 'flex', flexDirection: 'column',
                   gap: '0.375rem', alignItems: 'center',
-                  fontFamily: "'DM Sans', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                 }}
               >
                 <span style={{ fontSize: '1.25rem' }}>🔄</span>
@@ -667,7 +667,7 @@ export default function Track() {
           <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#444' }}>
             <div style={{ fontSize: '3.5rem', marginBottom: '1rem', opacity: 0.5 }}>🛵</div>
             <h2 style={{
-              fontFamily: "'Syne', sans-serif", fontWeight: 800,
+              fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800,
               fontSize: '1.125rem', color: '#666', marginBottom: '0.5rem',
             }}>
               Track Your Order

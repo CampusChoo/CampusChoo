@@ -16,6 +16,7 @@ interface AuthCtx {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>;
   register: (data: RegisterData) => Promise<{ ok: boolean; message?: string }>;
+  loginWithGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -26,6 +27,7 @@ interface RegisterData {
   phone: string;
   role?: 'BUYER' | 'VENDOR';
   level?: string;
+  storeName?: string;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -78,6 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function loginWithGoogle(idToken: string) {
+    try {
+      const res = await api('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ idToken }),
+      }, false);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, message: body.message ?? 'Google sign-in failed.' };
+      persist(body.user, body.accessToken, body.refreshToken);
+      return { ok: true };
+    } catch {
+      return { ok: false, message: 'Network error. Is the server running?' };
+    }
+  }
+
   async function logout() {
     try { await api('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
     clearTokens();
@@ -85,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,6 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Theme tokens ───────────────────────────────────────────────────────── */
+/* Set on <html data-theme="dark|light"> by themeStore.tsx. Components that opt
+   in via var() flip automatically. Pages with hard-coded inline colors do not
+   change — they keep their fixed look until they're refactored to use vars. */
+
+:root, html[data-theme="dark"] {
+  --cc-bg: #080706;
+  --cc-text: #ffffff;
+  --cc-muted: #9A8E85;
+  --cc-border: rgba(255, 255, 255, 0.07);
+  --cc-card: rgba(255, 255, 255, 0.04);
+  --cc-nav-bg: rgba(8, 7, 6, 0.88);
+  --cc-logo: #ffffff;
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --cc-bg: #FDF6EC;
+  --cc-text: #2B2720;
+  --cc-muted: #7A6E65;
+  --cc-border: rgba(0, 0, 0, 0.08);
+  --cc-card: rgba(255, 255, 255, 0.6);
+  --cc-nav-bg: rgba(253, 246, 236, 0.92);
+  --cc-logo: #0F0D0A;
+  color-scheme: light;
+}
+
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Crisper text on Windows/Mac/Chrome — fixes the "blurry font" look. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11', 'ss01', 'ss03'; /* Inter stylistic sets for nicer 'a', 'l', 'g' */
+}
+
+body {
+  background: var(--cc-bg);
+  color: var(--cc-text);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
 @keyframes ping {
   75%, 100% {
     transform: scale(2);
@@ -13,6 +55,14 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.7; }
 }
+
+/* Used by the Home hero card carousel — re-keyed elements fade + scale in. */
+@keyframes cc-food-pop {
+  0%   { opacity: 0; transform: scale(0.92); }
+  60%  { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.cc-food-pop { animation: cc-food-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
 
 /* Responsive helpers for the multi-column page layouts. */
 @media (max-width: 900px) {

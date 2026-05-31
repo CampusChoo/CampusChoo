@@ -4,8 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        syne: ['Syne', 'sans-serif'],
-        'dm-sans': ['DM Sans', 'sans-serif'],
+        display: ['Bricolage Grotesque', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
       },
       colors: {
         brand: {

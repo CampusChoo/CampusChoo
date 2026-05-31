@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useCart } from '../lib/cartStore';
 import { useAuth } from '../lib/authStore';
@@ -13,8 +13,17 @@ const BORDER = 'rgba(255,255,255,0.07)';
 const MUTED = '#928579';
 
 const BUILDINGS = [
-  { group: 'Hostels', options: ['Hostel A — Block 1', 'Hostel A — Block 2', 'Hostel B — Block 1', 'Hostel B — Block 2', 'Hostel C', 'Hostel D', 'Staff Bungalows'] },
-  { group: 'Academic', options: ['Main Lecture Hall', 'Engineering Block', 'Science Block', 'Library', 'Admin Block'] },
+  {
+    group: 'Hostels',
+    options: [
+      'KT Hall', 'Chamber of Mines Hall', 'Osborn', 'Kivis', 'SME', 'The Point',
+      'White House', 'Gold Belt', 'Agnes Minkah', 'Recognition', 'Gold Refinery Hall',
+      'Tandoh', 'Good Shepherd', 'Agrich', 'Platinum', 'Global', 'Harpart', 'Crystal',
+      'Grace Star', 'Alhaji', "Heaven's Gate", 'Manjeff', 'New Excellence', 'Hill View',
+      'Maame Esi Kyere', 'Holy Standard', 'Rafdmeh', 'Adejoe',
+    ],
+  },
+  { group: 'Academic', options: ['Administration Block', 'University Clinic', 'Main Auditorium', 'Mini Auditorium'] },
 ];
 
 const PAYMENT_OPTIONS = [
@@ -26,7 +35,6 @@ const PAYMENT_OPTIONS = [
 const DELIVERY_FEE = 15;
 
 export default function Checkout() {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const cart = useCart();
 
@@ -105,7 +113,7 @@ export default function Checkout() {
   }
 
   return (
-    <div style={{ background: BG, minHeight: '100vh', color: '#ECE4DC', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ background: BG, minHeight: '100vh', color: '#ECE4DC', fontFamily: "'Inter', sans-serif" }}>
       <Navbar />
 
       {/* Success overlay */}
@@ -192,7 +200,7 @@ export default function Checkout() {
                 marginTop: 16, width: '100%', padding: 12,
                 background: 'transparent', color: MUTED, border: `1px solid ${BORDER}`,
                 borderRadius: 12, fontSize: 13, cursor: 'pointer',
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
               }}>← Back to delivery details</button>
             </>
           )}
@@ -216,7 +224,7 @@ function Step({ n, name, state }: { n: number; name: string; state: 'active' | '
       <div style={{
         width: 32, height: 32, borderRadius: '50%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'Syne', sans-serif", fontSize: 13, fontWeight: 800,
+        fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 13, fontWeight: 800,
         border: `2px solid ${colors.border}`,
         background: colors.bg, color: colors.color, flexShrink: 0,
       }}>{state === 'done' ? '✓' : n}</div>
@@ -237,11 +245,11 @@ function FormSection({ num, title, children }: { num: number | string; title: st
         <div style={{
           width: 28, height: 28, borderRadius: '50%',
           background: 'rgba(244,82,30,0.15)', border: '1px solid rgba(244,82,30,0.3)',
-          color: ORANGE, fontFamily: "'Syne', sans-serif",
+          color: ORANGE, fontFamily: "'Bricolage Grotesque', sans-serif",
           fontSize: 13, fontWeight: 800,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>{num}</div>
-        <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>{title}</div>
+        <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>{title}</div>
       </div>
       {children}
     </div>
@@ -311,7 +319,7 @@ function OrderSummary({ lines, subtotal, delivery, total, building, room }: {
       overflow: 'hidden', backdropFilter: 'blur(10px)', position: 'sticky', top: 88,
     }}>
       <div style={{ padding: '22px 24px 18px', borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 2 }}>
+        <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 2 }}>
           Order Summary
         </div>
         <div style={{ fontSize: 12, color: MUTED }}>
@@ -328,7 +336,7 @@ function OrderSummary({ lines, subtotal, delivery, total, building, room }: {
               <div style={{ fontSize: 11, color: MUTED }}>{l.vendorName}</div>
             </div>
             <div style={{ fontSize: 12, color: MUTED }}>×{l.qty}</div>
-            <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 14, fontWeight: 800, color: ORANGE, flexShrink: 0 }}>
+            <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 14, fontWeight: 800, color: ORANGE, flexShrink: 0 }}>
               GHS {(l.price * l.qty).toFixed(0)}
             </div>
           </div>
@@ -351,7 +359,7 @@ function OrderSummary({ lines, subtotal, delivery, total, building, room }: {
         <Row label="Delivery fee" value={`GHS ${delivery}`} />
         <div style={{
           display: 'flex', justifyContent: 'space-between',
-          fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 800,
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 800,
           color: '#fff', paddingTop: 14, marginTop: 8, borderTop: `1px solid ${BORDER}`,
         }}>
           <span>Total</span>
@@ -385,25 +393,25 @@ function SuccessOverlay({ orderId }: { orderId: string }) {
         fontSize: 52, marginBottom: 28, color: '#23A852',
         boxShadow: '0 0 40px rgba(26,122,60,0.4)',
       }}>✓</div>
-      <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 36, fontWeight: 800, color: '#fff', letterSpacing: '-1.5px', marginBottom: 10 }}>
+      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 36, fontWeight: 800, color: '#fff', letterSpacing: '-1.5px', marginBottom: 10 }}>
         Order placed!
       </div>
       <p style={{ fontSize: 16, color: MUTED, maxWidth: 380, marginBottom: 8 }}>
         Your food is being prepared. Your rider will pick it up shortly.
       </p>
-      <div style={{ fontFamily: "'Syne', sans-serif", fontSize: 22, fontWeight: 800, color: ORANGE, marginBottom: 32, letterSpacing: '-0.5px' }}>
+      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 800, color: ORANGE, marginBottom: 32, letterSpacing: '-0.5px' }}>
         {orderId}
       </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
         <Link to={`/track/${orderId}`} style={{
           padding: '14px 28px', borderRadius: 999, background: ORANGE, color: '#fff',
-          fontFamily: "'Syne', sans-serif", fontSize: 15, fontWeight: 700,
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700,
           textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
         }}>🛵 Track My Order</Link>
         <Link to="/menu" style={{
           padding: '14px 28px', borderRadius: 999,
           background: 'transparent', color: MUTED, border: `1px solid ${BORDER}`,
-          fontFamily: "'Syne', sans-serif", fontSize: 15, fontWeight: 700,
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700,
           textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
         }}>Order Again</Link>
       </div>
@@ -413,11 +421,11 @@ function SuccessOverlay({ orderId }: { orderId: string }) {
 
 function FullPageMessage({ icon, title, message, cta }: { icon: string; title: string; message: string; cta: React.ReactNode }) {
   return (
-    <div style={{ background: BG, minHeight: '100vh', color: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ background: BG, minHeight: '100vh', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
       <Navbar />
       <div style={{ paddingTop: 88, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)', padding: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 20 }}>{icon}</div>
-        <h1 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: 28, color: '#fff', marginBottom: 12, letterSpacing: '-0.5px' }}>{title}</h1>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 28, color: '#fff', marginBottom: 12, letterSpacing: '-0.5px' }}>{title}</h1>
         <p style={{ color: MUTED, fontSize: 15, marginBottom: 28, maxWidth: 360 }}>{message}</p>
         {cta}
       </div>
@@ -429,7 +437,7 @@ const inputStyle: React.CSSProperties = {
   width: '100%', padding: '13px 16px',
   border: `1.5px solid ${BORDER}`, borderRadius: 12,
   background: 'rgba(255,255,255,0.05)', color: '#fff',
-  fontSize: 14, fontFamily: "'DM Sans', sans-serif",
+  fontSize: 14, fontFamily: "'Inter', sans-serif",
   outline: 'none', boxSizing: 'border-box',
 };
 
@@ -438,13 +446,13 @@ const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer', app
 const primaryBtn: React.CSSProperties = {
   width: '100%', padding: 17,
   background: ORANGE, color: '#fff', border: 'none', borderRadius: 14,
-  fontFamily: "'Syne', sans-serif", fontSize: 16, fontWeight: 800,
+  fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 800,
   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
 };
 
 const ctaStyle: React.CSSProperties = {
   background: ORANGE, color: '#fff', padding: '14px 28px',
-  borderRadius: 999, fontFamily: "'Syne', sans-serif",
+  borderRadius: 999, fontFamily: "'Bricolage Grotesque', sans-serif",
   fontSize: 15, fontWeight: 700, textDecoration: 'none',
 };
 

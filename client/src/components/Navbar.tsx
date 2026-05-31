@@ -1,19 +1,25 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/authStore';
 import { useCart } from '../lib/cartStore';
+import { useTheme } from '../lib/themeStore';
 
 const ORANGE = '#F4521E';
 
-export default function Navbar({ variant = 'dark' }: { variant?: 'dark' | 'cream' }) {
+// `variant` overrides the theme — used by pages that have a fixed background
+// (e.g. Home/Vendors/Menu always cream). When omitted, the navbar follows the
+// global theme toggle.
+export default function Navbar({ variant }: { variant?: 'dark' | 'cream' }) {
   const { user } = useAuth();
   const { count } = useCart();
   const { pathname } = useLocation();
+  const { theme, toggle } = useTheme();
 
-  const isCream = variant === 'cream';
-  const bg = isCream ? 'rgba(253,246,236,0.92)' : 'rgba(8,7,6,0.88)';
-  const border = isCream ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)';
-  const linkColor = isCream ? '#7A6E65' : '#9A8E85';
-  const logoColor = isCream ? '#0F0D0A' : '#fff';
+  const resolvedVariant = variant ?? (theme === 'light' ? 'cream' : 'dark');
+  const isCream = resolvedVariant === 'cream';
+  const bg        = isCream ? 'rgba(253,246,236,0.92)' : 'rgba(8,7,6,0.88)';
+  const border    = isCream ? 'rgba(0,0,0,0.08)'       : 'rgba(255,255,255,0.07)';
+  const linkColor = isCream ? '#7A6E65'                : '#9A8E85';
+  const logoColor = isCream ? '#0F0D0A'                : '#fff';
 
   const links = [
     { to: '/', label: 'Home' },
@@ -29,10 +35,10 @@ export default function Navbar({ variant = 'dark' }: { variant?: 'dark' | 'cream
       padding: '0 5%', height: 64,
       background: bg, backdropFilter: 'blur(16px)',
       borderBottom: `1px solid ${border}`,
-      fontFamily: "'DM Sans', sans-serif",
+      fontFamily: "'Inter', sans-serif",
     }}>
       <Link to="/" style={{
-        fontFamily: "'Syne', sans-serif", fontWeight: 800,
+        fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800,
         fontSize: 22, color: logoColor, textDecoration: 'none', letterSpacing: '-0.5px',
       }}>
         Campus<span style={{ color: ORANGE }}>Choo</span>
@@ -72,6 +78,26 @@ export default function Navbar({ variant = 'dark' }: { variant?: 'dark' | 'cream
             )}
           </Link>
         ) : null}
+
+        {/* Theme toggle — sits beside the Sign In / Portal button */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={{
+            background: 'transparent',
+            border: `1px solid ${border}`,
+            borderRadius: 999, width: 36, height: 36,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0,
+            color: linkColor, transition: 'background 0.15s, border-color 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = isCream ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
 
         {user ? (
           <Link to={user.role === 'VENDOR' ? '/portal' : '/account'} style={{
