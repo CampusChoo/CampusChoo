@@ -26,6 +26,7 @@ export default function Navbar({ variant }: { variant?: 'dark' | 'cream' }) {
     { to: '/vendors', label: 'Vendors' },
     { to: '/menu', label: 'Menu' },
     { to: '/track', label: 'Track' },
+    { to: '/about', label: 'About' },
   ];
 
   return (

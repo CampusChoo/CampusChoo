@@ -10,6 +10,7 @@ import Track from './pages/Track';
 import Account from './pages/Account';
 import VendorPortal from './pages/VendorPortal';
 import Products from './pages/Products';
+import About from './pages/About';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/account" element={<Account />} />
               <Route path="/portal" element={<VendorPortal />} />
               <Route path="/products" element={<Products />} />
+              <Route path="/about" element={<About />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
