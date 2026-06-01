@@ -40,7 +40,7 @@ export default function Checkout() {
 
   const [step, setStep] = useState<1 | 2>(1);
   const [building, setBuilding] = useState('');
-  const [room, setRoom] = useState('');
+
   const [name, setName] = useState(user?.name ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [vendorNote, setVendorNote] = useState('');
@@ -94,7 +94,7 @@ export default function Checkout() {
           vendorId: cart.vendorId,
           items: cart.lines.map((l) => ({ menuItemId: l.menuItemId, quantity: l.qty })),
           deliverTo: building,
-          roomNumber: room || undefined,
+
           paymentMethod: payment,
         }),
       });
@@ -133,21 +133,16 @@ export default function Checkout() {
           {step === 1 && (
             <form onSubmit={continueToPayment}>
               <FormSection num={1} title="Delivery Location">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  <FieldGroup label="Building / Hostel">
-                    <select required value={building} onChange={(e) => setBuilding(e.target.value)} style={selectStyle}>
-                      <option value="">Select building…</option>
-                      {BUILDINGS.map((g) => (
-                        <optgroup key={g.group} label={g.group} style={{ background: '#141210' }}>
-                          {g.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </FieldGroup>
-                  <FieldGroup label="Room / Floor">
-                    <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="e.g. Room 14B" style={inputStyle} />
-                  </FieldGroup>
-                </div>
+                <FieldGroup label="Building / Hostel">
+                  <select required value={building} onChange={(e) => setBuilding(e.target.value)} style={selectStyle}>
+                    <option value="">Select building…</option>
+                    {BUILDINGS.map((g) => (
+                      <optgroup key={g.group} label={g.group} style={{ background: '#141210' }}>
+                        {g.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                </FieldGroup>
               </FormSection>
 
               <FormSection num={2} title="Your Contact">
@@ -206,7 +201,7 @@ export default function Checkout() {
           )}
         </div>
 
-        <OrderSummary lines={cart.lines} subtotal={cart.subtotal} delivery={DELIVERY_FEE} total={total} building={building} room={room} />
+        <OrderSummary lines={cart.lines} subtotal={cart.subtotal} delivery={DELIVERY_FEE} total={total} building={building} />
       </div>
     </div>
   );
@@ -305,10 +300,10 @@ function PayOption({ option, selected, onClick }: { option: typeof PAYMENT_OPTIO
   );
 }
 
-function OrderSummary({ lines, subtotal, delivery, total, building, room }: {
+function OrderSummary({ lines, subtotal, delivery, total, building }: {
   lines: { menuItemId: string; name: string; price: number; qty: number; vendorName: string }[];
   subtotal: number; delivery: number; total: number;
-  building: string; room: string;
+  building: string;
 }) {
   const vendorName = lines[0]?.vendorName ?? 'Vendor';
   const itemCount = lines.reduce((s, l) => s + l.qty, 0);
@@ -350,7 +345,7 @@ function OrderSummary({ lines, subtotal, delivery, total, building, room }: {
           borderRadius: 12, padding: '12px 16px',
           fontSize: 13, color: '#4ADE80',
         }}>
-          📍 {building}{room ? `, ${room}` : ''}
+          📍 {building}
         </div>
       )}
 
