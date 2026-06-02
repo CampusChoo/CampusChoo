@@ -10,7 +10,6 @@ interface TrackItem {
   id: string;
   quantity: number;
   unitPrice: number | string;
-  subtotal: number | string;
   menuItem: { name: string; imageUrl?: string | null };
 }
 
@@ -21,7 +20,6 @@ interface TrackOrder {
   roomNumber?: string | null;
   createdAt: string;
   totalAmount: number | string;
-  subtotal: number | string;
   deliveryFee: number | string;
   paymentMethod: string;
   paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
@@ -636,7 +634,7 @@ export default function Track() {
                       </span>
                     </div>
                     <span style={{ color: '#e5e5e5', fontSize: '0.875rem', fontWeight: 600, flexShrink: 0 }}>
-                      {ghs(item.subtotal)}
+                      {ghs(Number(item.unitPrice) * item.quantity)}
                     </span>
                   </div>
                 ))}
@@ -649,7 +647,7 @@ export default function Track() {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', fontSize: '0.875rem' }}>
                   <span>Subtotal</span>
-                  <span>{ghs(order.subtotal)}</span>
+                  <span>{ghs(Number(order.totalAmount) - Number(order.deliveryFee))}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', fontSize: '0.875rem' }}>
                   <span>Delivery Fee</span>
