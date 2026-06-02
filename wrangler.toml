@@ -1,0 +1,17 @@
+# Cloudflare Workers config for the CampusChoo frontend.
+#
+# We're not actually running a Worker function — this just tells Cloudflare
+# to take the static files in client/dist (Vite's build output) and serve
+# them via Workers' Static Assets feature.
+#
+# Used by Cloudflare's Workers Builds CI when it runs `wrangler deploy`
+# after the build command finishes.
+
+name = "campuschoo"
+compatibility_date = "2024-09-01"
+
+[assets]
+directory = "./client/dist"
+# Send every unmatched path to index.html so client-side React Router routes
+# (/menu, /track/CC-123, etc.) resolve instead of 404ing.
+not_found_handling = "single-page-application"
