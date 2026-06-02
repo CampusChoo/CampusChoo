@@ -18,7 +18,10 @@ services:
     region: frankfurt          # Closest to Ghana — change to oregon/ohio if you prefer.
     branch: master
     # This is an npm-workspaces monorepo, so install/build run from the root.
-    buildCommand: npm install && npx prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace=server
+    # --include=dev is required because NODE_ENV=production (set below) makes
+    # `npm install` skip devDependencies by default. @types/* + typescript +
+    # prisma CLI live in devDeps and we need them to compile tsc.
+    buildCommand: npm install --include=dev && npx prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace=server
     startCommand: npm run start --workspace=server
     healthCheckPath: /health
     envVars:

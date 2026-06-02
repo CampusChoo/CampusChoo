@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "//": "Vercel project config for the CampusChoo frontend. The repo is an npm-workspaces monorepo, so the build command runs from the root and outputs the Vite client. Vercel auto-detects framework as Vite but needs the workspace-aware build/output paths spelled out.",
-  "buildCommand": "npm install && npm run build --workspace=client",
+  "buildCommand": "npm install --include=dev && npm run build --workspace=client",
   "outputDirectory": "client/dist",
-  "installCommand": "npm install",
+  "installCommand": "npm install --include=dev",
   "framework": "vite",
   "rewrites": [
     {
