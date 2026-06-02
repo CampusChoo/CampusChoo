@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
-import { api } from '../lib/api';
+import { api, apiUrl, SOCKET_URL } from '../lib/api';
 import { useTheme } from '../lib/themeStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ export default function VendorPortal() {
 
         const [oRes, mRes] = await Promise.all([
           api(`/api/vendors/${me.id}/orders`),
-          fetch(`/api/vendors/${me.id}/menu`),
+          fetch(apiUrl(`/api/vendors/${me.id}/menu`)),
         ]);
         if (cancelled) return;
         if (oRes.ok) setOrders(await oRes.json());
@@ -168,7 +168,7 @@ export default function VendorPortal() {
   // ── Socket: live order:new ──────────────────────────────────────────────
   useEffect(() => {
     if (!vendor?.id || !token) return;
-    const socket = io('/', { auth: { token }, transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { auth: { token }, transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
     const join = () => socket.emit('join:vendor', vendor.id);

@@ -5,6 +5,36 @@
 const ACCESS_KEY = 'cc_accessToken';
 const REFRESH_KEY = 'cc_refreshToken';
 
+// In dev, Vite proxies /api → localhost:4000 so leaving this empty makes
+// fetch('/api/...') just work. In prod the frontend (Vercel) and backend
+// (Render) live on different origins, so we prepend the full backend URL.
+// Set VITE_API_URL in client/.env (and in Vercel project env vars) to e.g.
+// "https://api.campuschoo.com" — no trailing slash.
+const API_BASE = ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '').replace(/\/$/, '');
+
+function fullUrl(path: string): string {
+  if (!API_BASE) return path;
+  return path.startsWith('/') ? `${API_BASE}${path}` : `${API_BASE}/${path}`;
+}
+
+// Exported so direct fetch() calls outside this file (e.g. for public/no-auth
+// endpoints) can prepend the prod backend URL too. In dev, returns the path
+// unchanged so Vite's proxy still works.
+export function apiUrl(path: string): string {
+  return fullUrl(path);
+}
+
+// Where Socket.io should connect to. Empty string → use same origin (works in
+// dev because Vite proxies /socket.io to the backend). In prod set
+// VITE_SOCKET_URL=https://api.campuschoo.com (or fall back to VITE_API_URL).
+export const SOCKET_URL = (() => {
+  const env = (import.meta as unknown as { env?: { VITE_SOCKET_URL?: string } }).env;
+  const explicit = env?.VITE_SOCKET_URL;
+  if (explicit) return explicit;
+  if (API_BASE) return API_BASE;
+  return '/';
+})();
+
 export function getAccessToken(): string | null {
   return typeof window === 'undefined' ? null : localStorage.getItem(ACCESS_KEY);
 }
@@ -24,7 +54,7 @@ async function tryRefresh(): Promise<boolean> {
   const refreshToken = localStorage.getItem(REFRESH_KEY);
   if (!refreshToken) return false;
   try {
-    const res = await fetch('/api/auth/refresh', {
+    const res = await fetch(fullUrl('/api/auth/refresh'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
@@ -54,14 +84,14 @@ export async function api(path: string, init: RequestInit = {}, withAuth = true)
     headers.set('Content-Type', 'application/json');
   }
 
-  let res = await fetch(path, { ...init, headers });
+  let res = await fetch(fullUrl(path), { ...init, headers });
 
   if (res.status === 401 && withAuth) {
     const refreshed = await tryRefresh();
     if (refreshed) {
       const newToken = getAccessToken();
       if (newToken) headers.set('Authorization', `Bearer ${newToken}`);
-      res = await fetch(path, { ...init, headers });
+      res = await fetch(fullUrl(path), { ...init, headers });
     }
   }
 

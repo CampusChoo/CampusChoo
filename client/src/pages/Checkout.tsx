@@ -88,6 +88,9 @@ export default function Checkout() {
     if (!cart.vendorId) { setErr('Cart is empty.'); return; }
     setErr(''); setSubmitting(true);
     try {
+      // Single round trip: server creates the order AND initialises Paystack,
+      // returning the authorization_url inline. Cuts ~one full Neon-to-Paystack
+      // round trip off the click-to-redirect latency.
       const res = await api('/api/orders', {
         method: 'POST',
         body: JSON.stringify({
@@ -101,13 +104,26 @@ export default function Checkout() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setErr(body.message ?? 'Could not place order.');
+        setSubmitting(false);
         return;
       }
-      setOrderId(body.id);
+      const createdOrderId = body.id as string;
       cart.clear();
+
+      if (body.paymentInit?.authorization_url) {
+        window.location.href = body.paymentInit.authorization_url as string;
+        return; // stay in "submitting" state so the overlay sticks until redirect
+      }
+
+      // Order placed but Paystack init failed (or this is CASH on delivery).
+      // Drop the buyer on the success screen so they can open the order to retry.
+      setOrderId(createdOrderId);
+      if (body.paymentInitError) {
+        setErr(`Order placed (${createdOrderId}), but payment couldn't start: ${body.paymentInitError}. Open the order to retry.`);
+      }
+      setSubmitting(false);
     } catch {
       setErr('Network error. Try again.');
-    } finally {
       setSubmitting(false);
     }
   }
@@ -118,6 +134,10 @@ export default function Checkout() {
 
       {/* Success overlay */}
       {orderId && <SuccessOverlay orderId={orderId} />}
+
+      {/* Instant overlay the moment the buyer clicks Place Order — makes the
+          wait for Paystack to initialise feel responsive instead of frozen. */}
+      {submitting && <PaystackOverlay />}
 
       <div style={{ padding: '88px 5% 80px', maxWidth: 1040, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 380px', gap: 28, alignItems: 'start' }}>
         <div>
@@ -369,6 +389,32 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: MUTED, padding: '4px 0' }}>
       <span>{label}</span><span>{value}</span>
+    </div>
+  );
+}
+
+function PaystackOverlay() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 299,
+      background: 'rgba(6,5,4,0.92)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexDirection: 'column', textAlign: 'center', padding: 40,
+    }}>
+      <div style={{
+        width: 72, height: 72, borderRadius: '50%',
+        border: '3px solid rgba(244,82,30,0.25)',
+        borderTopColor: ORANGE,
+        animation: 'cc-spin 0.9s linear infinite',
+        marginBottom: 24,
+      }} />
+      <style>{`@keyframes cc-spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', marginBottom: 6 }}>
+        Securing your order…
+      </div>
+      <div style={{ fontSize: 14, color: MUTED, maxWidth: 340 }}>
+        Connecting to Paystack. You'll be redirected to complete payment in just a moment.
+      </div>
     </div>
   );
 }

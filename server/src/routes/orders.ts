@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { getIo } from '../sockets/orderSocket';
 import { sendSms, smsTemplates } from '../lib/sms';
 import { authenticateToken, requireRole } from '../middleware/auth';
+import { isConfigured as paystackConfigured, initializeTransaction } from '../lib/paystack';
 
 const router = Router();
 
@@ -98,10 +99,10 @@ router.post(
     const subtotal = lineItems.reduce((sum, li) => sum + li.subtotal, 0);
     const totalAmount = subtotal + DELIVERY_FEE;
 
-    // ── Buyer phone for SMS ──────────────────────────────────────────────────
+    // ── Buyer phone + email for SMS / Paystack ───────────────────────────────
     const buyer = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { phone: true },
+      select: { phone: true, email: true },
     });
 
     // ── Prisma transaction ───────────────────────────────────────────────────
@@ -164,7 +165,31 @@ router.post(
         : Promise.resolve(),
     ]);
 
-    res.status(201).json(order);
+    // ── Inline Paystack initialise ───────────────────────────────────────────
+    // Done in the same response so the client doesn't pay for a second HTTP
+    // round trip to /api/payments/initialize. Cash-on-delivery skips this.
+    let paymentInit: { authorization_url: string; reference: string } | null = null;
+    let paymentInitError: string | null = null;
+    if (paystackConfigured() && paymentMethod !== 'CASH' && buyer?.email) {
+      const reference = `${orderId}:${Date.now()}`;
+      const base = (process.env.CLIENT_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+      try {
+        const data = await initializeTransaction({
+          email: buyer.email,
+          amount: Number(order.totalAmount),
+          reference,
+          callbackUrl: `${base}/track/${encodeURIComponent(orderId)}`,
+          metadata: { orderId, buyerId: req.user!.id },
+        });
+        paymentInit = { authorization_url: data.authorization_url, reference: data.reference };
+      } catch (err) {
+        // Order is already created — surface the error but don't fail the whole
+        // request. The buyer can retry from the Track page.
+        paymentInitError = err instanceof Error ? err.message : 'Failed to initialise payment.';
+      }
+    }
+
+    res.status(201).json({ ...order, paymentInit, paymentInitError });
   },
 );
 

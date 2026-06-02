@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useCart } from '../lib/cartStore';
+import { apiUrl } from '../lib/api';
 
 const ORANGE = '#F4521E';
 const CREAM = '#FDF6EC';
@@ -45,7 +46,7 @@ export default function Menu() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/vendors');
+        const res = await fetch(apiUrl('/api/vendors'));
         if (!res.ok) return;
         const list: Vendor[] = await res.json();
         setVendors(list);
@@ -66,7 +67,7 @@ export default function Menu() {
     setItems([]);
     (async () => {
       try {
-        const res = await fetch(`/api/vendors/${activeVendorId}/menu`);
+        const res = await fetch(apiUrl(`/api/vendors/${activeVendorId}/menu`));
         if (res.ok) setItems(await res.json());
       } finally {
         setLoadingItems(false);

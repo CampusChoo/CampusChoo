@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
+import { apiUrl, SOCKET_URL } from '../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ interface TrackOrder {
   subtotal: number | string;
   deliveryFee: number | string;
   paymentMethod: string;
+  paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   riderName?: string | null;
   riderPhone?: string | null;
   vendorId: string;
@@ -30,6 +32,14 @@ interface TrackOrder {
   vendor: { storeName: string };
   buyer: { name: string };
 }
+
+type PayBanner =
+  | { kind: 'idle' }
+  | { kind: 'verifying' }
+  | { kind: 'paid'; channel?: string | null }
+  | { kind: 'failed'; reason?: string }
+  | { kind: 'pending' }
+  | { kind: 'error'; message: string };
 
 interface StatusUpdatePayload {
   orderId: string;
@@ -108,6 +118,7 @@ export default function Track() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [eta, setEta] = useState(0);
+  const [payBanner, setPayBanner] = useState<PayBanner>({ kind: 'idle' });
   const socketRef = useRef<Socket | null>(null);
   const etaIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -118,7 +129,7 @@ export default function Track() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(normalised)}`);
+      const res = await fetch(apiUrl(`/api/orders/${encodeURIComponent(normalised)}`));
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setError(body.message ?? `Couldn't find order ${normalised}.`);
@@ -145,10 +156,57 @@ export default function Track() {
     }
   }, [routeOrderId, searchParams, fetchOrder]);
 
+  // ── Verify Paystack payment when the buyer comes back via ?reference=... ──
+  // Paystack appends ?reference=<our_ref> to the callback URL. We hit our
+  // /api/payments/verify route, which confirms with Paystack and updates the
+  // order's paymentStatus. Then we strip the param so a page refresh doesn't
+  // re-verify.
+  useEffect(() => {
+    const reference = searchParams.get('reference') ?? searchParams.get('trxref');
+    if (!reference) return;
+
+    let cancelled = false;
+    setPayBanner({ kind: 'verifying' });
+    (async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/payments/verify?reference=${encodeURIComponent(reference)}`));
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok) {
+          setPayBanner({ kind: 'error', message: body.message ?? 'Could not verify payment.' });
+        } else if (body.paymentStatus === 'PAID') {
+          setPayBanner({ kind: 'paid', channel: body.channel });
+          // Re-fetch so the order details reflect the new paymentStatus.
+          if (body.orderId) fetchOrder(body.orderId);
+        } else if (body.paymentStatus === 'FAILED') {
+          setPayBanner({ kind: 'failed', reason: body.reason });
+        } else {
+          setPayBanner({ kind: 'pending' });
+        }
+      } catch {
+        if (!cancelled) setPayBanner({ kind: 'error', message: 'Network error while verifying payment.' });
+      } finally {
+        // Strip ?reference/?trxref from the URL so refresh won't re-verify.
+        if (!cancelled) {
+          const next = new URLSearchParams(searchParams);
+          next.delete('reference');
+          next.delete('trxref');
+          const qs = next.toString();
+          const path = routeOrderId ? `/track/${routeOrderId}` : '/track';
+          navigate(qs ? `${path}?${qs}` : path, { replace: true });
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // searchParams change is the trigger — fetchOrder is stable via useCallback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // ── Socket.io live updates ──────────────────────────────────────────────
   useEffect(() => {
     if (!order?.id) return;
-    const socket = io('/', { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
     socket.on('connect', () => socket.emit('join:order', order.id));
     socket.emit('join:order', order.id);
@@ -224,6 +282,9 @@ export default function Track() {
       </header>
 
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: '1.5rem 1rem 3rem' }}>
+        {/* ── Paystack payment banner (only when returning from checkout) ── */}
+        {payBanner.kind !== 'idle' && <PaymentBanner state={payBanner} />}
+
         {/* ── Search Bar ── */}
         <form onSubmit={handleTrack} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
           <input
@@ -677,6 +738,36 @@ export default function Track() {
             </p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function PaymentBanner({ state }: { state: PayBanner }) {
+  const styles: Record<PayBanner['kind'], { bg: string; border: string; text: string; emoji: string; title: string; body: string }> = {
+    idle:      { bg: '',          border: '',          text: '',         emoji: '',  title: '',                          body: '' },
+    verifying: { bg: '#0a1330',    border: '#1e3a8a',   text: '#bfdbfe',  emoji: '⏳', title: 'Verifying payment…',         body: 'Hold on a second while we confirm your payment with Paystack.' },
+    paid:      { bg: '#0a1f10',    border: '#166534',   text: '#86efac',  emoji: '✅', title: 'Payment received',           body: state.kind === 'paid' && state.channel ? `Paid via ${state.channel}. Your order is on its way.` : 'Your order is confirmed and on its way.' },
+    failed:    { bg: '#1f0a0a',    border: '#7f1d1d',   text: '#fca5a5',  emoji: '⚠️', title: 'Payment was not completed',  body: state.kind === 'failed' && state.reason ? `Paystack reported: ${state.reason}. You can retry from the order page.` : 'Your payment did not go through. Please try again.' },
+    pending:   { bg: '#1f1810',    border: '#9a6e1e',   text: '#fde68a',  emoji: '⏱', title: 'Payment still processing',   body: 'Paystack has not confirmed your payment yet. We will update this page automatically as soon as it does.' },
+    error:     { bg: '#1f0a0a',    border: '#7f1d1d',   text: '#fca5a5',  emoji: '⚠️', title: 'Could not verify',           body: state.kind === 'error' ? state.message : 'Unknown error.' },
+  };
+  const s = styles[state.kind];
+  if (!s.title) return null;
+  return (
+    <div style={{
+      background: s.bg, border: `1px solid ${s.border}`, color: s.text,
+      borderRadius: '0.875rem', padding: '1rem 1.125rem', marginBottom: '1rem',
+      display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+    }}>
+      <span style={{ fontSize: '1.25rem', flexShrink: 0, lineHeight: 1 }}>{s.emoji}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: '0.9375rem', marginBottom: 2 }}>
+          {s.title}
+        </div>
+        <div style={{ fontSize: '0.8125rem', opacity: 0.9, lineHeight: 1.5 }}>
+          {s.body}
+        </div>
       </div>
     </div>
   );

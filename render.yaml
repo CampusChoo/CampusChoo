@@ -1,0 +1,52 @@
+# Render.com infrastructure-as-code blueprint.
+#
+# This file is auto-detected when you create a "Blueprint" in the Render
+# dashboard. It tells Render exactly how to build + run the CampusChoo
+# backend, what env vars to ask for, and what region/plan to use.
+#
+# How to use:
+#   1. Push this file to GitHub.
+#   2. In Render dashboard → "New +" → "Blueprint" → connect the repo.
+#   3. Render reads this file and prompts you for the env vars below.
+#   4. Hit "Apply" and Render builds + deploys.
+
+services:
+  - type: web
+    name: campuschoo-api
+    runtime: node
+    plan: free                 # Upgrade to "starter" ($7/mo) to avoid the 15min idle sleep.
+    region: frankfurt          # Closest to Ghana — change to oregon/ohio if you prefer.
+    branch: master
+    # This is an npm-workspaces monorepo, so install/build run from the root.
+    buildCommand: npm install && npx prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace=server
+    startCommand: npm run start --workspace=server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000           # Render injects PORT automatically; this is fallback only.
+      - key: DATABASE_URL
+        sync: false            # You paste the Neon URL in the Render dashboard.
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false            # Upstash rediss:// URL.
+      - key: JWT_SECRET
+        generateValue: true    # Render generates a strong random value once.
+      - key: PAYSTACK_SECRET_KEY
+        sync: false            # sk_test_... or sk_live_...
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://campuschoo.com,https://www.campuschoo.com
+      - key: CLIENT_BASE_URL
+        value: https://campuschoo.com
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: ARKESEL_API_KEY
+        sync: false            # Optional — SMS sending; leave blank to skip.

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { apiUrl } from '../lib/api';
 
 const ORANGE = '#F4521E';
 const CREAM = '#FDF6EC';
@@ -29,7 +30,7 @@ export default function Vendors() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/vendors');
+        const res = await fetch(apiUrl('/api/vendors'));
         if (!res.ok) {
           setErr('Could not load vendors. Is the server running?');
           return;
