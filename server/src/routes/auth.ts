@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
-import type { Role } from '@prisma/client';
+import type { Prisma, Role } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import redis, { refreshKey, REFRESH_TTL_SECONDS } from '../lib/redis';
 import { signAccessToken, signRefreshToken, verifyToken } from '../lib/tokens';
@@ -69,7 +69,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
   // Vendors need a Vendor row alongside the User row, otherwise /api/vendors/me
   // (and the whole vendor portal) has no record to read. Create both atomically.
-  const user = await prisma.$transaction(async (tx) => {
+  const user = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const u = await tx.user.create({
       data: {
         name,

@@ -28,6 +28,8 @@ router.post(
   authenticateToken,
   requireRole('BUYER'),
   async (req: Request, res: Response) => {
+    type OrderRequestItem = { menuItemId: string; quantity: number };
+
     const {
       vendorId,
       items,
@@ -36,7 +38,7 @@ router.post(
       paymentMethod,
     } = req.body as {
       vendorId?: string;
-      items?: { menuItemId: string; quantity: number }[];
+      items?: OrderRequestItem[];
       deliverTo?: string;
       roomNumber?: string;
       paymentMethod?: PaymentMethod;
@@ -84,9 +86,14 @@ router.post(
 
     // ── Calculate totals ─────────────────────────────────────────────────────
     const DELIVERY_FEE = 15;
-    const priceMap = new Map(menuItems.map((m) => [m.id, Number(m.price)]));
+    const priceMap = new Map(menuItems.map((m) => [m.id, Number(m.price)] as [string, number]));
 
-    const lineItems = items.map((item) => {
+    const lineItems: Array<{
+      menuItemId: string;
+      quantity: number;
+      unitPrice: number;
+      subtotal: number;
+    }> = items.map((item) => {
       const unitPrice = priceMap.get(item.menuItemId)!;
       return {
         menuItemId: item.menuItemId,
