@@ -42,9 +42,9 @@ services:
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: CORS_ORIGINS
-        value: https://campuschoo.com,https://www.campuschoo.com
+        sync: false            # e.g. https://yourdomain.com,https://www.yourdomain.com
       - key: CLIENT_BASE_URL
-        value: https://campuschoo.com
+        sync: false            # e.g. https://yourdomain.com
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
