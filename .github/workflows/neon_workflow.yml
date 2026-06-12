@@ -47,6 +47,23 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
           expires_at: ${{ env.EXPIRES_AT }}
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run migrations against Neon preview branch
+        run: npm run db:migrate --workspace=server
+        env:
+          DATABASE_URL: "${{ steps.create_neon_branch.outputs.db_url_with_pooler }}"
+
 # The step above creates a new Neon branch.
 # You may want to do something with the new branch, such as run migrations, run tests
 # on it, or send the connection details to a hosting platform environment.
