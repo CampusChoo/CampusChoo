@@ -41,19 +41,26 @@ export default function Menu() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [query, setQuery] = useState('');
   const [toast, setToast] = useState('');
+  const [vendorError, setVendorError] = useState('');
+  const [menuError, setMenuError] = useState('');
 
   // Load vendors on mount
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch(apiUrl('/api/vendors'));
-        if (!res.ok) return;
+        if (!res.ok) {
+          setVendorError('Could not load vendors. Is the server running?');
+          return;
+        }
         const list: Vendor[] = await res.json();
         setVendors(list);
         if (!activeVendorId && list.length > 0) {
           setActiveVendorId(list[0].id);
           setSearch({ vendorId: list[0].id }, { replace: true });
         }
+      } catch {
+        setVendorError('Network error. Is the server running?');
       } finally {
         setLoadingVendors(false);
       }
@@ -65,10 +72,17 @@ export default function Menu() {
     if (!activeVendorId) return;
     setLoadingItems(true);
     setItems([]);
+    setMenuError('');
     (async () => {
       try {
         const res = await fetch(apiUrl(`/api/vendors/${activeVendorId}/menu`));
-        if (res.ok) setItems(await res.json());
+        if (!res.ok) {
+          setMenuError('Could not load menu. Please refresh.');
+          return;
+        }
+        setItems(await res.json());
+      } catch {
+        setMenuError('Network error while loading menu.');
       } finally {
         setLoadingItems(false);
       }
@@ -153,6 +167,8 @@ export default function Menu() {
           {/* Vendor tabs */}
           {loadingVendors ? (
             <p style={{ color: MUTED }}>Loading vendors…</p>
+          ) : vendorError ? (
+            <ErrorPanel message={vendorError} />
           ) : vendors.length === 0 ? (
             <NoVendors />
           ) : (
@@ -204,6 +220,8 @@ export default function Menu() {
               {/* Food grid */}
               {loadingItems ? (
                 <p style={{ color: MUTED }}>Loading menu…</p>
+              ) : menuError ? (
+                <ErrorPanel message={menuError} />
               ) : filteredItems.length === 0 && items.length > 0 ? (
                 <p style={{ color: MUTED, padding: 32, textAlign: 'center' }}>No items match your filter.</p>
               ) : items.length === 0 ? (
@@ -395,6 +413,19 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: MUTED, padding: '4px 0' }}>
       <span>{label}</span><span>{value}</span>
+    </div>
+  );
+}
+
+function ErrorPanel({ message }: { message: string }) {
+  return (
+    <div style={{
+      background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 18,
+      padding: 36, textAlign: 'center', color: MUTED,
+    }}>
+      <div style={{ fontSize: 34, marginBottom: 14 }}>⚠️</div>
+      <p style={{ fontSize: 16, fontWeight: 700, color: '#0F0D0A', marginBottom: 8 }}>Unable to load data</p>
+      <p style={{ fontSize: 14 }}>{message}</p>
     </div>
   );
 }
