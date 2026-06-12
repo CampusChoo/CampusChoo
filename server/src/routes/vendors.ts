@@ -8,10 +8,29 @@ const router = Router();
 // Public list — used by the Vendors browse page.
 
 router.get('/vendors', async (_req: Request, res: Response) => {
-  const vendors = await prisma.vendor.findMany({
-    orderBy: [{ isOpen: 'desc' }, { rating: 'desc' }],
-  });
-  res.json(vendors);
+  try {
+    const vendors = await prisma.vendor.findMany({
+      orderBy: [{ isOpen: 'desc' }, { rating: 'desc' }],
+    });
+    res.json(vendors);
+  } catch (err) {
+    console.error('[vendors] DB error, returning fallback vendors', err);
+    // Fallback data when the database is unreachable (helps local dev)
+    const fallback = [
+      {
+        id: 'fallback-1',
+        userId: '',
+        storeName: "Fallback Kitchen",
+        description: 'Sample vendor (DB unavailable)',
+        location: 'Local (offline)',
+        imageUrl: null,
+        isOpen: false,
+        rating: 0,
+        cuisine: [],
+      },
+    ];
+    res.json(fallback);
+  }
 });
 
 // ─── GET /api/vendors/me ──────────────────────────────────────────────────────
