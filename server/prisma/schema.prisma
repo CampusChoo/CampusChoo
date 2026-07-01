@@ -4,8 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")   // Pooled — used by the running app
-  directUrl = env("DIRECT_URL")     // Unpooled — used by prisma migrate
+  url       = env("DATABASE_URL")   // App database URL (e.g. Supabase Postgres)
+  directUrl = env("DIRECT_URL")     // Direct URL used by prisma migrate
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
