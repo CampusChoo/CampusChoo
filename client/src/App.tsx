@@ -19,7 +19,6 @@ const Account      = lazy(() => import('./pages/Account'));
 const VendorPortal = lazy(() => import('./pages/VendorPortal'));
 const Products     = lazy(() => import('./pages/Products'));
 const About        = lazy(() => import('./pages/About'));
-const SupabaseDemo = lazy(() => import('./pages/SupabaseDemo'));
 
 function RouteFallback() {
   return (
@@ -55,7 +54,6 @@ export default function App() {
                 <Route path="/portal" element={<VendorPortal />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/about" element={<About />} />
-                <Route path="/supabase-demo" element={<SupabaseDemo />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

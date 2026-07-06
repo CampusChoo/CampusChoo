@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useCart } from '../lib/cartStore';
-import { apiUrl } from '../lib/api';
+import { api } from '../lib/api';
 
 const ORANGE = '#F4521E';
 const CREAM = '#FDF6EC';
@@ -48,7 +48,7 @@ export default function Menu() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(apiUrl('/api/vendors'));
+        const res = await api('/api/vendors', {}, false);
         if (!res.ok) {
           setVendorError('Could not load vendors. Is the server running?');
           return;
@@ -75,7 +75,7 @@ export default function Menu() {
     setMenuError('');
     (async () => {
       try {
-        const res = await fetch(apiUrl(`/api/vendors/${activeVendorId}/menu`));
+        const res = await api(`/api/vendors/${activeVendorId}/menu`, {}, false);
         if (!res.ok) {
           setMenuError('Could not load menu. Please refresh.');
           return;

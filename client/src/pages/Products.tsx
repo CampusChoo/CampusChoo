@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../lib/authStore';
-import { api, apiUrl } from '../lib/api';
+import { api } from '../lib/api';
 
 const ORANGE = '#F4521E';
 const BG = '#080706';
@@ -87,7 +87,7 @@ export default function Products() {
         if (cancelled) return;
         setVendor(me);
 
-        const pRes = await fetch(apiUrl(`/api/vendors/${me.id}/menu`));
+        const pRes = await api(`/api/vendors/${me.id}/menu`, {}, false);
         if (cancelled) return;
         if (pRes.ok) setProducts(await pRes.json());
       } catch {

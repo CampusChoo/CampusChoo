@@ -10,7 +10,8 @@ const REFRESH_KEY = 'cc_refreshToken';
 // (Render) live on different origins, so we prepend the full backend URL.
 // Set VITE_API_URL in client/.env (and in Vercel project env vars) to e.g.
 // "https://api.campuschoo.com" — no trailing slash.
-const API_BASE = ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '').replace(/\/$/, '');
+const rawApiBase = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '';
+const API_BASE = rawApiBase.replace(/\/+$/, '').replace(/\/api$/, '');
 
 function fullUrl(path: string): string {
   if (!API_BASE) return path;

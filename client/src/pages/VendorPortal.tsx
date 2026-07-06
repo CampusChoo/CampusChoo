@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
-import { api, apiUrl, SOCKET_URL } from '../lib/api';
+import { api, SOCKET_URL } from '../lib/api';
 import { useTheme } from '../lib/themeStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ export default function VendorPortal() {
 
         const [oRes, mRes] = await Promise.all([
           api(`/api/vendors/${me.id}/orders`),
-          fetch(apiUrl(`/api/vendors/${me.id}/menu`)),
+          api(`/api/vendors/${me.id}/menu`, {}, false),
         ]);
         if (cancelled) return;
         if (oRes.ok) setOrders(await oRes.json());
