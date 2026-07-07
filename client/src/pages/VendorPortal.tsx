@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { io, Socket } from 'socket.io-client';
-import { api, SOCKET_URL } from '../lib/api';
+import { api } from '../lib/api';
 import { useTheme } from '../lib/themeStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -113,7 +112,6 @@ export default function VendorPortal() {
   const [err, setErr] = useState('');
   const [toasts, setToasts] = useState<{ id: number; msg: string; tone: 'info' | 'success' | 'error' }[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
   const toastIdRef = useRef(0);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('cc_accessToken') : null;
@@ -168,19 +166,24 @@ export default function VendorPortal() {
   // ── Socket: live order:new ──────────────────────────────────────────────
   useEffect(() => {
     if (!vendor?.id || !token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ['websocket', 'polling'] });
-    socketRef.current = socket;
+    let cancelled = false;
+    const refresh = async () => {
+      const res = await api(`/api/vendors/${vendor.id}/orders`);
+      if (!res.ok || cancelled) return;
+      const latest: Order[] = await res.json();
+      setOrders(latest);
+    };
+    const interval = setInterval(refresh, 10_000);
+    /*
 
-    const join = () => socket.emit('join:vendor', vendor.id);
-    socket.on('connect', join);
-    join();
-
-    socket.on('order:new', (newOrder: Order) => {
-      setOrders((prev) => prev.some((o) => o.id === newOrder.id) ? prev : [newOrder, ...prev]);
       pushToast(`📦 New order ${newOrder.id} from ${newOrder.buyer?.name ?? 'a buyer'}`, 'success');
     });
 
-    return () => { socket.disconnect(); socketRef.current = null; };
+    */
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [vendor?.id, token, pushToast]);
 
   // ── Actions ─────────────────────────────────────────────────────────────

@@ -9,8 +9,8 @@ import { ThemeProvider } from './lib/themeStore';
 import Home from './pages/Home';
 
 // Every other route is code-split: each page only downloads when navigated
-// to. Keeps the initial bundle small and stops one heavy page (e.g. the
-// VendorPortal with its socket.io client) from slowing down the rest.
+// to. Keeps the initial bundle small and stops dashboard-only code from
+// slowing down the rest.
 const Vendors      = lazy(() => import('./pages/Vendors'));
 const Menu         = lazy(() => import('./pages/Menu'));
 const Checkout     = lazy(() => import('./pages/Checkout'));

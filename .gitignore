@@ -8,3 +8,4 @@ build/
 server/uploads/
 
 .vercel
+supabase/.temp/

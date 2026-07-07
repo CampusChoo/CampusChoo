@@ -89,7 +89,7 @@ export default function Checkout() {
     setErr(''); setSubmitting(true);
     try {
       // Single round trip: server creates the order AND initialises Paystack,
-      // returning the authorization_url inline. Cuts ~one full Neon-to-Paystack
+      // returning the authorization_url inline. Cuts ~one full API-to-Paystack
       // round trip off the click-to-redirect latency.
       const res = await api('/api/orders', {
         method: 'POST',

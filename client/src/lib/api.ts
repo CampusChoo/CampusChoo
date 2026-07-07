@@ -5,13 +5,18 @@
 const ACCESS_KEY = 'cc_accessToken';
 const REFRESH_KEY = 'cc_refreshToken';
 
-// In dev, Vite proxies /api → localhost:4000 so leaving this empty makes
-// fetch('/api/...') just work. In prod the frontend (Vercel) and backend
-// (Render) live on different origins, so we prepend the full backend URL.
-// Set VITE_API_URL in client/.env (and in Vercel project env vars) to e.g.
-// "https://api.campuschoo.com" — no trailing slash.
-const rawApiBase = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '';
-const API_BASE = rawApiBase.replace(/\/+$/, '').replace(/\/api$/, '');
+// API calls go through the Supabase Edge Function named `api`.
+// Set VITE_API_URL to https://<project>.supabase.co/functions/v1/api, or let it
+// derive that URL from VITE_SUPABASE_URL.
+const env = (import.meta as unknown as {
+  env?: { VITE_API_URL?: string; VITE_SUPABASE_URL?: string };
+}).env;
+const rawApiBase = env?.VITE_API_URL?.trim();
+const rawSupabaseUrl = env?.VITE_SUPABASE_URL?.trim().replace(/\/+$/, '');
+const API_BASE = (
+  rawApiBase ||
+  (rawSupabaseUrl ? `${rawSupabaseUrl}/functions/v1/api` : '')
+).replace(/\/+$/, '').replace(/\/api$/, '');
 
 function fullUrl(path: string): string {
   if (!API_BASE) return path;
@@ -24,17 +29,6 @@ function fullUrl(path: string): string {
 export function apiUrl(path: string): string {
   return fullUrl(path);
 }
-
-// Where Socket.io should connect to. Empty string → use same origin (works in
-// dev because Vite proxies /socket.io to the backend). In prod set
-// VITE_SOCKET_URL=https://api.campuschoo.com (or fall back to VITE_API_URL).
-export const SOCKET_URL = (() => {
-  const env = (import.meta as unknown as { env?: { VITE_SOCKET_URL?: string } }).env;
-  const explicit = env?.VITE_SOCKET_URL;
-  if (explicit) return explicit;
-  if (API_BASE) return API_BASE;
-  return '/';
-})();
 
 export function getAccessToken(): string | null {
   return typeof window === 'undefined' ? null : localStorage.getItem(ACCESS_KEY);

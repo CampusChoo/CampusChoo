@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { io, Socket } from 'socket.io-client';
-import { apiUrl, SOCKET_URL } from '../lib/api';
+import { apiUrl } from '../lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -38,12 +37,6 @@ type PayBanner =
   | { kind: 'failed'; reason?: string }
   | { kind: 'pending' }
   | { kind: 'error'; message: string };
-
-interface StatusUpdatePayload {
-  orderId: string;
-  status: string;
-  order?: TrackOrder;
-}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -117,15 +110,16 @@ export default function Track() {
   const [error, setError] = useState('');
   const [eta, setEta] = useState(0);
   const [payBanner, setPayBanner] = useState<PayBanner>({ kind: 'idle' });
-  const socketRef = useRef<Socket | null>(null);
   const etaIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Fetch order ─────────────────────────────────────────────────────────
-  const fetchOrder = useCallback(async (id: string) => {
+  const fetchOrder = useCallback(async (id: string, silent = false) => {
     const normalised = id.trim().toUpperCase();
     if (!normalised) return;
-    setLoading(true);
-    setError('');
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const res = await fetch(apiUrl(`/api/orders/${encodeURIComponent(normalised)}`));
       if (!res.ok) {
@@ -138,10 +132,12 @@ export default function Track() {
       setOrder(data);
       setEta(ETA_MAP[data.status] ?? 0);
     } catch {
-      setError('Could not connect. Check your internet and try again.');
-      setOrder(null);
+      if (!silent) {
+        setError('Could not connect. Check your internet and try again.');
+        setOrder(null);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -204,19 +200,11 @@ export default function Track() {
   // ── Socket.io live updates ──────────────────────────────────────────────
   useEffect(() => {
     if (!order?.id) return;
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-    socketRef.current = socket;
-    socket.on('connect', () => socket.emit('join:order', order.id));
-    socket.emit('join:order', order.id);
-
-    socket.on('order:statusUpdate', (payload: StatusUpdatePayload) => {
-      if (payload.orderId !== order.id) return;
-      setOrder((prev) => prev ? { ...prev, status: payload.status, ...(payload.order ?? {}) } : prev);
-      setEta(ETA_MAP[payload.status] ?? 0);
-    });
-
-    return () => { socket.disconnect(); socketRef.current = null; };
-  }, [order?.id]);
+    const interval = setInterval(() => {
+      fetchOrder(order.id, true);
+    }, 10_000);
+    return () => clearInterval(interval);
+  }, [order?.id, fetchOrder]);
 
   // ── ETA countdown (per minute) ──────────────────────────────────────────
   useEffect(() => {
