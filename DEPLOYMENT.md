@@ -36,7 +36,10 @@ Set these Edge Function secrets:
 supabase secrets set JWT_SECRET="long-random-secret"
 supabase secrets set PAYSTACK_SECRET_KEY="sk_live_or_test_key"
 supabase secrets set GOOGLE_CLIENT_ID="your-google-client-id"
-supabase secrets set ARKESEL_API_KEY="optional-arkesel-key"
+supabase secrets set SMS_API="your-bms-api-key"
+supabase secrets set ADMIN_EMAIL="admin@example.com"
+supabase secrets set ADMIN_PASSWORD="strong-admin-password"
+supabase secrets set ADMIN_PHONE="+233XXXXXXXXX"
 ```
 
 Supabase automatically provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`

@@ -108,6 +108,15 @@ create table if not exists public.refresh_token (
   "createdAt" timestamptz not null default now()
 );
 
+create table if not exists public.admin_login_code (
+  id text primary key default gen_random_uuid()::text,
+  email text not null,
+  code text not null,
+  used boolean not null default false,
+  "expiresAt" timestamptz not null,
+  "createdAt" timestamptz not null default now()
+);
+
 create index if not exists vendor_is_open_rating_idx on public.vendor ("isOpen" desc, rating desc);
 create index if not exists menu_item_vendor_idx on public."menuItem" ("vendorId");
 create index if not exists menu_item_vendor_available_idx on public."menuItem" ("vendorId", "isAvailable");

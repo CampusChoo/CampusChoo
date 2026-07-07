@@ -9,6 +9,10 @@ const JWT_SECRET = Deno.env.get('JWT_SECRET') ?? '';
 const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') ?? '';
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
 const CLIENT_BASE_URL = Deno.env.get('CLIENT_BASE_URL') ?? 'http://localhost:3000';
+const SMS_API = Deno.env.get('SMS_API') ?? '';
+const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') ?? '';
+const ADMIN_PASSWORD = Deno.env.get('ADMIN_PASSWORD') ?? '';
+const ADMIN_PHONE = Deno.env.get('ADMIN_PHONE') ?? '';
 const ARKESEL_API_KEY = Deno.env.get('ARKESEL_API_KEY') ?? '';
 
 function errorMessage(err: unknown) {
@@ -214,6 +218,49 @@ async function passwordMatches(password: string, passwordHash: string) {
   return constantTimeCompare(derived, expected);
 }
 
+async function ensureAdminUser() {
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !ADMIN_PHONE) throw new Error('Admin account is not configured.');
+  const { data: existing, error: existingErr } = await supabase.from('user').select('*').eq('email', ADMIN_EMAIL).maybeSingle();
+  if (existingErr) throw existingErr;
+  if (existing) {
+    if (existing.role !== 'ADMIN') {
+      throw new Error('Admin email is already in use by a non-admin account.');
+    }
+    return existing;
+  }
+  const passwordHash = await hashPassword(ADMIN_PASSWORD);
+  const { data: created, error: createErr } = await supabase.from('user').insert({
+    name: 'CampusChoo Admin',
+    email: ADMIN_EMAIL,
+    passwordHash,
+    phone: ADMIN_PHONE,
+    role: 'ADMIN',
+  }).select().maybeSingle();
+  if (createErr || !created) throw createErr ?? new Error('Failed to create admin account.');
+  return created;
+}
+
+
+async function sendSms(to: string, message: string) {
+  if (SMS_API) {
+    await fetch('https://api.bms.co.ke/sms/quick', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SMS_API}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sender: 'campuschoo', recipients: [to], message }),
+    }).catch(() => undefined);
+    return;
+  }
+  if (!ARKESEL_API_KEY) return;
+  await fetch('https://sms.arkesel.com/api/v2/sms/send', {
+    method: 'POST',
+    headers: { 'api-key': ARKESEL_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sender: 'CampusChoo', message, recipients: [to] }),
+  }).catch(() => undefined);
+}
+
 async function paystack<T>(path: string, init: RequestInit = {}) {
   if (!PAYSTACK_SECRET_KEY.startsWith('sk_')) throw new Error('Paystack is not configured.');
   const res = await fetch(`https://api.paystack.co${path}`, {
@@ -247,15 +294,6 @@ async function initializePayment(args: {
       metadata: { orderId: args.orderId, buyerId: args.buyerId },
     }),
   });
-}
-
-async function sendSms(to: string, message: string) {
-  if (!ARKESEL_API_KEY) return;
-  await fetch('https://sms.arkesel.com/api/v2/sms/send', {
-    method: 'POST',
-    headers: { 'api-key': ARKESEL_API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sender: 'CampusChoo', message, recipients: [to] }),
-  }).catch(() => undefined);
 }
 
 async function routeAuth(req: Request, path: string) {
@@ -360,6 +398,59 @@ async function routeAuth(req: Request, path: string) {
       user = created;
     }
     return json({ ...(await issueTokens(user)), user: safeUser(user) });
+  }
+
+  return null;
+}
+
+async function routeAdmin(req: Request, path: string) {
+  if (req.method === 'POST' && path === '/admin/request-code') {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !ADMIN_PHONE) {
+      return json({ message: 'Admin login is not configured.' }, 503);
+    }
+    const { email, password } = await bodyJson<{ email?: string; password?: string }>(req);
+    if (!email || !password) return json({ message: 'email and password are required.' }, 400);
+    if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) return json({ message: 'Invalid admin credentials.' }, 401);
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const { error } = await supabase.from('admin_otp').upsert({ email, code, expiresAt }).select();
+    if (error) {
+      console.error('Failed to store admin OTP', error);
+      return json({ message: 'Failed to generate code.' }, 500);
+    }
+
+    // send SMS to configured admin phone
+    try {
+      const message = `Your CampusChoo admin verification code is ${code}. It expires in 5 minutes.`;
+      await sendSms(ADMIN_PHONE, message);
+    } catch (e) {
+      console.error('Failed to send admin SMS', e);
+    }
+
+    return json({ ok: true });
+  }
+
+  if (req.method === 'POST' && path === '/admin/verify') {
+    const { email, code } = await bodyJson<{ email?: string; code?: string }>(req);
+    if (!email || !code) return json({ message: 'email and code are required.' }, 400);
+    const { data, error } = await supabase.from('admin_otp').select('*').eq('email', email).maybeSingle();
+    if (error) {
+      console.error('Failed to query admin OTP', error);
+      return json({ message: 'Verification failed.' }, 500);
+    }
+    if (!data || data.code !== code || new Date(data.expiresAt).getTime() < Date.now()) {
+      return json({ message: 'Invalid or expired code.' }, 401);
+    }
+
+    // delete used code
+    await supabase.from('admin_otp').delete().eq('email', email);
+
+    // Issue an access token for the admin (no refresh token)
+    const payload = { sub: `admin:${email}`, email, role: 'ADMIN' as Role };
+    const accessToken = await signJwt(payload, 60 * 60); // 1 hour
+    const user = { id: `admin:${email}`, name: 'Admin', email, phone: ADMIN_PHONE, role: 'ADMIN', level: null, createdAt: new Date().toISOString() };
+    return json({ accessToken, user }, 200);
   }
 
   return null;
@@ -772,6 +863,7 @@ Deno.serve(async (req) => {
     const { path, url } = normalizePath(req);
     const response =
       await routeAuth(req, path) ??
+      await routeAdmin(req, path) ??
       await routeVendors(req, path, url) ??
       await routeMenu(req, path) ??
       await routeOrders(req, path, url) ??

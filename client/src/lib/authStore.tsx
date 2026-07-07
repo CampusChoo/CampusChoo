@@ -16,6 +16,8 @@ interface AuthCtx {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>;
   register: (data: RegisterData) => Promise<{ ok: boolean; message?: string }>;
+  adminRequestCode: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  adminVerifyCode: (code: string) => Promise<{ ok: boolean; message?: string }>;
   loginWithGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
 }
@@ -80,6 +82,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function adminRequestCode(email: string, password: string) {
+    try {
+      const res = await api('/api/admin/request-code', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }, false);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, message: body.message ?? 'Admin request failed.' };
+      // remember admin email for verification step
+      try { localStorage.setItem('cc_admin_email', String(email)); } catch { /* ignore */ }
+      return { ok: true };
+    } catch {
+      return { ok: false, message: 'Network error. Is the server running?' };
+    }
+  }
+
+  async function adminVerifyCode(code: string) {
+    try {
+      const email = localStorage.getItem('cc_admin_email') ?? '';
+      const res = await api('/api/admin/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      }, false);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, message: body.message ?? 'Verification failed.' };
+      persist(body.user, body.accessToken, body.refreshToken ?? '');
+      try { localStorage.removeItem('cc_admin_email'); } catch { /* ignore */ }
+      return { ok: true };
+    } catch {
+      return { ok: false, message: 'Network error. Is the server running?' };
+    }
+  }
+
   async function loginWithGoogle(idToken: string) {
     try {
       const res = await api('/api/auth/google', {
@@ -102,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, adminRequestCode, adminVerifyCode, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

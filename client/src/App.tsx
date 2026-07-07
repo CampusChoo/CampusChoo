@@ -19,6 +19,7 @@ const Account      = lazy(() => import('./pages/Account'));
 const VendorPortal = lazy(() => import('./pages/VendorPortal'));
 const Products     = lazy(() => import('./pages/Products'));
 const About        = lazy(() => import('./pages/About'));
+const Admin        = lazy(() => import('./pages/Admin'));
 
 function RouteFallback() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
                 <Route path="/account" element={<Account />} />
                 <Route path="/portal" element={<VendorPortal />} />
                 <Route path="/products" element={<Products />} />
+                <Route path="/bonney" element={<Admin />} />
                 <Route path="/about" element={<About />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
