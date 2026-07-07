@@ -10,7 +10,7 @@
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
-    "@campuschoo/shared": "*",
+    "@campuschoo/shared": "file:../shared",
     "@supabase/supabase-js": "^2.39.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
