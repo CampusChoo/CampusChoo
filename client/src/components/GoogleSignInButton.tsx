@@ -14,6 +14,12 @@ declare global {
             auto_select?: boolean;
           }) => void;
           renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+          prompt: (callback?: (notification: {
+            isNotDisplayed?: () => boolean;
+            isSkippedMoment?: () => boolean;
+            getNotDisplayedReason?: () => string;
+            getSkippedReason?: () => string;
+          }) => void) => void;
           cancel: () => void;
         };
       };
@@ -54,6 +60,14 @@ export default function GoogleSignInButton({
         text,
         shape: 'pill',
         width: containerRef.current!.offsetWidth || 320,
+      });
+      // auto_select only fires through the One Tap prompt — invoke it.
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed?.()) {
+          console.warn('Google One Tap not displayed:', notification.getNotDisplayedReason?.());
+        } else if (notification.isSkippedMoment?.()) {
+          console.warn('Google One Tap skipped:', notification.getSkippedReason?.());
+        }
       });
     };
     tryInit();
