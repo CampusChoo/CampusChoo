@@ -12,21 +12,23 @@ const CARD = 'rgba(255,255,255,0.04)';
 const BORDER = 'rgba(255,255,255,0.07)';
 const MUTED = '#9A8E85';
 
-// Google reCAPTCHA v2 site key. The fallback is Google's official test key — it
-// always returns a valid token and works on any domain. Replace via env for prod.
+// Google reCAPTCHA Enterprise site key. Set VITE_RECAPTCHA_SITE_KEY to override
+// (e.g. in Vercel). The default is the project's Enterprise key.
 const RECAPTCHA_SITE_KEY =
   (import.meta as unknown as { env?: { VITE_RECAPTCHA_SITE_KEY?: string } }).env?.VITE_RECAPTCHA_SITE_KEY
-  ?? '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
-const RECAPTCHA_SCRIPT_SRC = 'https://www.google.com/recaptcha/api.js?render=explicit';
+  ?? '6Le79E8tAAAAAGAV9mvqiWPx-IO83W0G0Q4nbi31';
+const RECAPTCHA_SCRIPT_SRC = 'https://www.google.com/recaptcha/enterprise.js?render=explicit';
 
 declare global {
   interface Window {
     grecaptcha?: {
-      render: (
-        el: HTMLElement,
-        opts: { sitekey: string; theme?: 'light' | 'dark'; callback: (t: string) => void; 'expired-callback'?: () => void },
-      ) => number;
-      reset: (id?: number) => void;
+      enterprise?: {
+        render: (
+          el: HTMLElement,
+          opts: { sitekey: string; theme?: 'light' | 'dark'; callback: (t: string) => void; 'expired-callback'?: () => void },
+        ) => number;
+        reset: (id?: number) => void;
+      };
     };
   }
 }
@@ -595,9 +597,10 @@ function RecaptchaWidget({ onToken }: { onToken: (token: string | null) => void 
 
     const tryRender = () => {
       if (cancelled) return;
-      if (window.grecaptcha?.render && ref.current && widgetIdRef.current === null) {
+      const g = window.grecaptcha?.enterprise;
+      if (g?.render && ref.current && widgetIdRef.current === null) {
         try {
-          widgetIdRef.current = window.grecaptcha.render(ref.current, {
+          widgetIdRef.current = g.render(ref.current, {
             sitekey: RECAPTCHA_SITE_KEY,
             theme: 'dark',
             callback: (token) => {

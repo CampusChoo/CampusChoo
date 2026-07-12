@@ -9,6 +9,9 @@ const JWT_SECRET = Deno.env.get('JWT_SECRET') ?? '';
 const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') ?? '';
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
 const RECAPTCHA_SECRET_KEY = Deno.env.get('RECAPTCHA_SECRET_KEY') ?? '';
+const RECAPTCHA_PROJECT_ID = Deno.env.get('RECAPTCHA_PROJECT_ID') ?? '';
+const RECAPTCHA_API_KEY = Deno.env.get('RECAPTCHA_API_KEY') ?? '';
+const RECAPTCHA_SITE_KEY = Deno.env.get('RECAPTCHA_SITE_KEY') ?? '6Le79E8tAAAAAGAV9mvqiWPx-IO83W0G0Q4nbi31';
 const CLIENT_BASE_URL = Deno.env.get('CLIENT_BASE_URL') ?? 'http://localhost:3000';
 const SMS_API = Deno.env.get('SMS_API') ?? '';
 const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') ?? '';
@@ -35,9 +38,56 @@ assertEnv('JWT_SECRET', JWT_SECRET);
 async function verifyRecaptcha(token: string | undefined, remoteIp: string | null) {
   const testSecret = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe';
   if (!token) return { ok: false, message: 'Please complete the reCAPTCHA challenge.' };
+
+  // reCAPTCHA Enterprise verification (preferred when configured).
+  if (RECAPTCHA_PROJECT_ID && RECAPTCHA_API_KEY) {
+    try {
+      const res = await fetch(
+        `https://recaptchaenterprise.googleapis.com/v1/projects/${RECAPTCHA_PROJECT_ID}/assessments?key=${RECAPTCHA_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: {
+              token,
+              siteKey: RECAPTCHA_SITE_KEY,
+              expectedAction: 'REGISTER',
+              userIpAddress: remoteIp ?? undefined,
+            },
+          }),
+        },
+      );
+      const data = await res.json().catch(() => ({})) as {
+        tokenProperties?: { valid?: boolean; invalidReason?: string };
+      };
+      if (data.tokenProperties?.valid) return { ok: true };
+      return { ok: false, message: `reCAPTCHA failed: ${data.tokenProperties?.invalidReason ?? 'invalid token'}` };
+    } catch {
+      return { ok: false, message: 'reCAPTCHA verification error.' };
+    }
+  }
+
+  // Fallback: reCAPTCHA v2.
   if (!RECAPTCHA_SECRET_KEY) {
     return { ok: false, message: 'reCAPTCHA is not configured on the server.' };
   }
+  const body = new URLSearchParams({
+    secret: RECAPTCHA_SECRET_KEY,
+    response: token,
+  });
+  if (remoteIp) body.set('remoteip', remoteIp);
+
+  const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  const data = await res.json().catch(() => ({})) as { success?: boolean; 'error-codes'?: string[] };
+  if (data.success || RECAPTCHA_SECRET_KEY === testSecret) return { ok: true };
+
+  const codes = data['error-codes']?.join(', ');
+  return { ok: false, message: codes ? `reCAPTCHA failed: ${codes}` : 'reCAPTCHA verification failed.' };
+}
 
   const body = new URLSearchParams({
     secret: RECAPTCHA_SECRET_KEY,
