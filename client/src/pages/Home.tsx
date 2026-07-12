@@ -129,7 +129,7 @@ const FOOD_ITEMS: { name: string; vendor: string; image: string }[] = [
   { name: 'Jollof Rice + Chicken',         vendor: "Mama Ama's Kitchen · Block C",   image: '/food/jollof.jpg' },
   { name: 'Waakye + Stew',                 vendor: 'Auntie Akos · SRC Cafeteria',    image: '/food/waakye.webp' },
   { name: 'Fufu & Light Soup',             vendor: "Maa Yaa's Joint · Hostel Jct",   image: '/food/fufu.jpg' },
-  { name: 'Banku & Tilapia',               vendor: 'Coastal Bites · Faculty Block',  image: '/food/banku-tilapia.jpg' },
+  { name: 'Banku & Tilapia',               vendor: 'Coastal Bites · Faculty Block',  image: '/food/banku-tilapia.webp' },
   { name: 'Gob3 (Beans, Gari, Plantain)',  vendor: "Student's Plug · Tarkwa Main",   image: '/food/gob3.webp' },
 ];
 

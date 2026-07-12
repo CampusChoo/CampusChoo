@@ -36,11 +36,15 @@ Set these Edge Function secrets:
 supabase secrets set JWT_SECRET="long-random-secret"
 supabase secrets set PAYSTACK_SECRET_KEY="sk_live_or_test_key"
 supabase secrets set GOOGLE_CLIENT_ID="your-google-client-id"
-supabase secrets set SMS_API="your-bms-api-key"
+supabase secrets set RECAPTCHA_SECRET_KEY="your-recaptcha-secret-key"
+supabase secrets set SMS_API="your-bms-africand-api-key"
 supabase secrets set ADMIN_EMAIL="admin@example.com"
 supabase secrets set ADMIN_PASSWORD="strong-admin-password"
 supabase secrets set ADMIN_PHONE="+233XXXXXXXXX"
 ```
+
+Admin OTP codes are sent by SMS to `ADMIN_PHONE` through BMS Africa / mNotify API
+(`https://api.mnotify.com/api/sms/quick`).
 
 Supabase automatically provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
 to Edge Functions.
@@ -54,6 +58,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-public-key
 VITE_API_URL=https://your-project.supabase.co/functions/v1/api
 VITE_GOOGLE_CLIENT_ID=your-google-client-id
+VITE_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
 ```
 
 `VITE_API_URL` should point to the `api` Edge Function, not to `/api`.

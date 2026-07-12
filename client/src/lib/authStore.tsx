@@ -20,6 +20,8 @@ interface AuthCtx {
   adminVerifyCode: (code: string) => Promise<{ ok: boolean; message?: string }>;
   loginWithGoogle: (idToken: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
+  forgotPassword: (phone: string) => Promise<{ ok: boolean; email?: string; message?: string }>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<{ ok: boolean; message?: string }>;
 }
 
 interface RegisterData {
@@ -30,6 +32,7 @@ interface RegisterData {
   role?: 'BUYER' | 'VENDOR';
   level?: string;
   storeName?: string;
+  captchaToken?: string;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -136,8 +139,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  async function forgotPassword(phone: string) {
+    try {
+      const res = await api('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ phone }),
+      }, false);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, message: body.message ?? 'Failed to request reset code.' };
+      return { ok: true, email: body.email };
+    } catch {
+      return { ok: false, message: 'Network error. Is the server running?' };
+    }
+  }
+
+  async function resetPassword(email: string, code: string, newPassword: string) {
+    try {
+      const res = await api('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ email, code, newPassword }),
+      }, false);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, message: body.message ?? 'Password reset failed.' };
+      return { ok: true };
+    } catch {
+      return { ok: false, message: 'Network error. Is the server running?' };
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, adminRequestCode, adminVerifyCode, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, adminRequestCode, adminVerifyCode, loginWithGoogle, logout, forgotPassword, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

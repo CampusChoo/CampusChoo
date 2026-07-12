@@ -45,6 +45,7 @@ export default function GoogleSignInButton({
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: (response) => onCredential(response.credential),
+        auto_select: true,
       });
       window.google.accounts.id.renderButton(containerRef.current!, {
         theme: 'filled_black',

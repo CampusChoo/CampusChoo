@@ -272,21 +272,57 @@ function CatPill({ active, onClick, children }: { active: boolean; onClick: () =
   );
 }
 
+  const CAT_IMG: Record<string, string> = {
+    Mains:    '/food/jollof.jpg',
+    Proteins: '/food/chicken.webp',
+    Soups:    '/food/okro-soup.webp',
+    Sides:    '/food/plantain.webp',
+    Snacks:   '/food/shawarma.webp',
+    Desserts: '/food/OIP (2).webp',
+    Combos:   '/food/kenkey.webp',
+    Breakfast:'/food/fufu.jpg',
+  };
+
 function FoodCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
+  const imgSrc = item.imageUrl
+    ? item.imageUrl
+    : CAT_IMG[item.category.trim()] ?? '/food/jollof.jpg';
+
   return (
     <div style={{
       background: '#fff', border: `1px solid ${BORDER}`,
       borderRadius: 18, overflow: 'hidden',
-    }}>
+      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+      cursor: 'default',
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(43,39,32,0.12)'; }}
+    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+    >
       <div style={{
-        width: '100%', height: 140,
+        width: '100%', height: 150,
         background: 'linear-gradient(135deg, #f5ede4 0%, #ecddd0 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 52, position: 'relative', overflow: 'hidden',
       }}>
-        {item.imageUrl
-          ? <img src={item.imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : '🍽️'}
+        <img
+          src={imgSrc}
+          alt={item.name}
+          loading="lazy"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+        {!item.imageUrl && (
+          <span style={{ position: 'absolute', fontSize: 44, opacity: 0.2 }}>🍽️</span>
+        )}
+        {!item.isAvailable && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 13, fontWeight: 700,
+            letterSpacing: '0.4px',
+          }}>UNAVAILABLE</div>
+        )}
       </div>
       <div style={{ padding: '14px 16px 16px' }}>
         <div style={{
@@ -299,16 +335,26 @@ function FoodCard({ item, onAdd }: { item: MenuItem; onAdd: () => void }) {
           }}>{item.description}</div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 800, color: ORANGE }}>
-            GHS {Number(item.price).toFixed(2)}
+          <div style={{
+            fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 800, color: ORANGE,
+            background: 'rgba(244,82,30,0.08)', padding: '3px 10px', borderRadius: 8,
+          }}>
+            {Number(item.price) === 0 ? 'FREE' : `GHS ${Number(item.price).toFixed(2)}`}
           </div>
-          <button onClick={onAdd} style={{
+          <button onClick={onAdd} disabled={!item.isAvailable} style={{
             width: 34, height: 34, borderRadius: '50%',
-            background: ORANGE, color: '#fff', border: 'none',
-            fontSize: 18, cursor: 'pointer',
+            background: item.isAvailable ? ORANGE : '#C4B8AE',
+            color: '#fff', border: 'none',
+            fontSize: 18, cursor: item.isAvailable ? 'pointer' : 'not-allowed',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            opacity: item.isAvailable ? 1 : 0.6,
           }}>+</button>
         </div>
+        <div style={{
+          display: 'inline-block', marginTop: 8,
+          fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px',
+          color: MUTED, background: '#F5EDE0', padding: '2px 8px', borderRadius: 6,
+        }}>{item.category}</div>
       </div>
     </div>
   );
@@ -347,10 +393,17 @@ function CartSidebar({ onCheckout }: { onCheckout: () => void }) {
               padding: '12px 0', borderBottom: `1px solid ${BORDER}`,
             }}>
               <div style={{
-                width: 44, height: 44, borderRadius: 10,
-                background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, flexShrink: 0,
-              }}>🍽️</div>
+                width: 48, height: 48, borderRadius: 10,
+                background: CREAM, overflow: 'hidden', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {line.imageUrl ? (
+                  <img src={line.imageUrl} alt={line.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ) : (
+                  <span style={{ fontSize: 22 }}>🍽️</span>
+                )}
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#0F0D0A', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {line.name}

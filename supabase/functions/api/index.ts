@@ -8,12 +8,13 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('S
 const JWT_SECRET = Deno.env.get('JWT_SECRET') ?? '';
 const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') ?? '';
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') ?? '';
+const RECAPTCHA_SECRET_KEY = Deno.env.get('RECAPTCHA_SECRET_KEY') ?? '';
 const CLIENT_BASE_URL = Deno.env.get('CLIENT_BASE_URL') ?? 'http://localhost:3000';
 const SMS_API = Deno.env.get('SMS_API') ?? '';
 const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') ?? '';
 const ADMIN_PASSWORD = Deno.env.get('ADMIN_PASSWORD') ?? '';
 const ADMIN_PHONE = Deno.env.get('ADMIN_PHONE') ?? '';
-const ARKESEL_API_KEY = Deno.env.get('ARKESEL_API_KEY') ?? '';
+const BMS_SMS_URL = 'https://api.mnotify.com/api/sms/quick';
 
 function errorMessage(err: unknown) {
   if (err instanceof Error) return err.message;
@@ -30,6 +31,31 @@ function assertEnv(name: string, value: string) {
 assertEnv('SUPABASE_URL', SUPABASE_URL);
 assertEnv('SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_KEY', SERVICE_KEY);
 assertEnv('JWT_SECRET', JWT_SECRET);
+
+async function verifyRecaptcha(token: string | undefined, remoteIp: string | null) {
+  const testSecret = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe';
+  if (!token) return { ok: false, message: 'Please complete the reCAPTCHA challenge.' };
+  if (!RECAPTCHA_SECRET_KEY) {
+    return { ok: false, message: 'reCAPTCHA is not configured on the server.' };
+  }
+
+  const body = new URLSearchParams({
+    secret: RECAPTCHA_SECRET_KEY,
+    response: token,
+  });
+  if (remoteIp) body.set('remoteip', remoteIp);
+
+  const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  const data = await res.json().catch(() => ({})) as { success?: boolean; 'error-codes'?: string[] };
+  if (data.success || RECAPTCHA_SECRET_KEY === testSecret) return { ok: true };
+
+  const codes = data['error-codes']?.join(', ');
+  return { ok: false, message: codes ? `reCAPTCHA failed: ${codes}` : 'reCAPTCHA verification failed.' };
+}
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false },
@@ -242,23 +268,36 @@ async function ensureAdminUser() {
 
 
 async function sendSms(to: string, message: string) {
-  if (SMS_API) {
-    await fetch('https://api.bms.co.ke/sms/quick', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${SMS_API}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ sender: 'campuschoo', recipients: [to], message }),
-    }).catch(() => undefined);
-    return;
+  if (!SMS_API) {
+    throw new Error('SMS_API is not configured.');
   }
-  if (!ARKESEL_API_KEY) return;
-  await fetch('https://sms.arkesel.com/api/v2/sms/send', {
+  const cleanPhone = to.replace(/^\+/, '').trim();
+  const url = `${BMS_SMS_URL}?key=${encodeURIComponent(SMS_API)}`;
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { 'api-key': ARKESEL_API_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sender: 'CampusChoo', message, recipients: [to] }),
-  }).catch(() => undefined);
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: 'campuschoo',
+      recipient: [cleanPhone],
+      recipients: [cleanPhone], // fallback
+      message,
+      is_schedule: false,
+      schedule_date: '',
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`BMS SMS failed (${res.status}): ${body || res.statusText}`);
+  }
+}
+
+function sendSmsQuietly(to: string, message: string) {
+  sendSms(to, message).catch((err) => {
+    console.error('Failed to send SMS notification', err);
+  });
 }
 
 async function paystack<T>(path: string, init: RequestInit = {}) {
@@ -298,9 +337,11 @@ async function initializePayment(args: {
 
 async function routeAuth(req: Request, path: string) {
   if (req.method === 'POST' && path === '/auth/register') {
-    const { name, email, password, phone, role, level, storeName } = await bodyJson<Record<string, string>>(req);
+    const { name, email, password, phone, role, level, storeName, captchaToken } = await bodyJson<Record<string, string>>(req);
     if (!name || !email || !password || !phone) return json({ message: 'name, email, password and phone are required.' }, 400);
     if (password.length < 6) return json({ message: 'Password must be at least 6 characters.' }, 400);
+    const captcha = await verifyRecaptcha(captchaToken, req.headers.get('x-forwarded-for'));
+    if (!captcha.ok) return json({ message: captcha.message }, 400);
 
     const { data: existing, error: existingErr } = await supabase.from('user').select('id').eq('email', email).maybeSingle();
     if (existingErr) throw existingErr;
@@ -400,12 +441,366 @@ async function routeAuth(req: Request, path: string) {
     return json({ ...(await issueTokens(user)), user: safeUser(user) });
   }
 
+  if (req.method === 'POST' && path === '/auth/forgot-password') {
+    const { phone } = await bodyJson<{ phone?: string }>(req);
+    if (!phone) return json({ message: 'phone is required.' }, 400);
+
+    const cleanPhone = phone.replace(/^\+/, '').trim();
+    // Lookup user by phone (allowing local or international prefixed formats)
+    const { data: user, error: userErr } = await supabase.from('user')
+      .select('*')
+      .or(`phone.eq.${cleanPhone},phone.eq.+${cleanPhone}`)
+      .maybeSingle();
+
+    if (userErr) throw userErr;
+    if (!user) return json({ message: 'No account registered with this phone number.' }, 404);
+
+    // Rate Limiting: Check if there's a code generated in the last 60 seconds
+    const { data: existingOtp, error: existingErr } = await supabase.from('password_reset_otp').select('*').eq('email', user.email).maybeSingle();
+    if (existingErr) throw existingErr;
+    if (existingOtp) {
+      const elapsed = Date.now() - new Date(existingOtp.createdAt).getTime();
+      if (elapsed < 60 * 1000) {
+        const waitTime = Math.ceil((60 * 1000 - elapsed) / 1000);
+        return json({ message: `Please wait ${waitTime} seconds before requesting another code.` }, 429);
+      }
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes expiry
+
+    const { error: upsertErr } = await supabase.from('password_reset_otp').upsert({ email: user.email, code, expiresAt, createdAt: new Date().toISOString() });
+    if (upsertErr) {
+      console.error('Failed to store password reset OTP', upsertErr);
+      return json({ message: 'Failed to generate code.' }, 500);
+    }
+
+    try {
+      const message = `Your CampusChoo password reset code is ${code}. It expires in 10 minutes.`;
+      await sendSms(user.phone, message);
+    } catch (e) {
+      console.error('Failed to send password reset SMS', e);
+      return json({ message: errorMessage(e) }, 502);
+    }
+
+    return json({ ok: true, email: user.email });
+  }
+
+  if (req.method === 'POST' && path === '/auth/reset-password') {
+    const { email, code, newPassword } = await bodyJson<{ email?: string; code?: string; newPassword?: string }>(req);
+    if (!email || !code || !newPassword) {
+      return json({ message: 'email, code and newPassword are required.' }, 400);
+    }
+    if (newPassword.length < 6) {
+      return json({ message: 'Password must be at least 6 characters.' }, 400);
+    }
+
+    const { data: otp, error: otpErr } = await supabase.from('password_reset_otp').select('*').eq('email', email.trim()).maybeSingle();
+    if (otpErr) throw otpErr;
+    if (!otp || otp.code !== code.trim() || new Date(otp.expiresAt).getTime() < Date.now()) {
+      return json({ message: 'Invalid or expired verification code.' }, 401);
+    }
+
+    // Update password
+    const passwordHash = await hashPassword(newPassword);
+    const { error: userErr } = await supabase.from('user').update({ passwordHash }).eq('email', email.trim());
+    if (userErr) throw userErr;
+
+    // Delete used OTP
+    await supabase.from('password_reset_otp').delete().eq('email', email.trim());
+
+    return json({ ok: true });
+  }
+
   return null;
 }
 
 async function routeAdmin(req: Request, path: string) {
+  if (req.method === 'POST' && path === '/seed') {
+    const body = await bodyJson<{ key?: string }>(req);
+    const expectedKey = Deno.env.get('SEED_KEY');
+    
+    if (!expectedKey || body.key !== expectedKey) {
+      return json({ message: 'Unauthorized. SEED_KEY mismatch.' }, 403);
+    }
+
+    try {
+      const rows = [
+        { name: 'JUMOR KINGS', phone: '242925350', hours: '7:00am-9:00pm', location: 'UMaT, Tarkwa - Halls', img: '/food/kenkey.webp', items: [
+          { name: 'Kenkey', price: 7, cat: 'Mains' },
+          { name: 'Fish', price: 10, cat: 'Proteins' },
+          { name: 'Chicken', price: 10, cat: 'Proteins' },
+          { name: 'Egg', price: 3.5, cat: 'Proteins' },
+          { name: 'Sausage (Small)', price: 5, cat: 'Sides' },
+          { name: 'Sausage (Big)', price: 8, cat: 'Sides' },
+          { name: 'Okro Soup', price: 5, cat: 'Soups' },
+          { name: 'Wele', price: 5, cat: 'Proteins' },
+          { name: 'Beef', price: 5, cat: 'Proteins' },
+        ]},
+        { name: "ANTIE AMA'S GOB3", phone: '248448793', hours: '7.00am-4.00pm', location: 'UMaT, Tarkwa - SRC Cafeteria', img: '/food/gob3.webp', items: [
+          { name: 'Gob3', price: 6, cat: 'Mains' },
+          { name: 'Plain Rice', price: 5, cat: 'Mains' },
+          { name: 'Plantain', price: 1, cat: 'Sides' },
+          { name: 'Sausage', price: 6, cat: 'Proteins' },
+          { name: 'Egg', price: 4, cat: 'Proteins' },
+          { name: 'Pear (Pawpaw)', price: 4, cat: 'Sides' },
+        ]},
+        { name: 'FASTMAH', phone: '543499282', hours: '7:30AM-6:00PM', location: 'UMaT, Tarkwa - Faculty Block', img: '/food/waakye.webp', items: [
+          { name: 'Waakye (Rice)', price: 8, cat: 'Mains' },
+          { name: 'Waakye Fish', price: 7, cat: 'Proteins' },
+          { name: 'Waakye Chicken (Small)', price: 10, cat: 'Proteins' },
+          { name: 'Waakye Chicken (Large)', price: 15, cat: 'Proteins' },
+          { name: 'Waakye Egg', price: 4, cat: 'Proteins' },
+          { name: 'Waakye Sausage', price: 4, cat: 'Sides' },
+          { name: 'Gob3', price: 8, cat: 'Mains' },
+          { name: 'Fried Rice', price: 10, cat: 'Mains' },
+          { name: 'Jollof Rice', price: 10, cat: 'Mains' },
+          { name: 'Kokonte', price: 5, cat: 'Mains' },
+          { name: 'Banku', price: 5, cat: 'Mains' },
+          { name: 'TZ', price: 5, cat: 'Mains' },
+        ]},
+        { name: "MAKARIOS RESTURANT", phone: '246553515', hours: '9:30AM-10:00PM', location: 'UMaT, Tarkwa - Main Campus', img: '/food/jollof.jpg', items: [
+          { name: 'Fried Rice', price: 35, cat: 'Mains' },
+          { name: 'Jollof Rice', price: 35, cat: 'Mains' },
+          { name: 'Banku & Tilapia', price: 40, cat: 'Combos' },
+          { name: 'Shawarma', price: 40, cat: 'Snacks' },
+        ]},
+        { name: "CATHERINE'S KITCHEN", phone: '53569944', hours: '8:30AM-1:00AM', location: 'UMaT, Tarkwa - Halls', img: '/food/kenkey.webp', items: [
+          { name: 'Kenkey', price: 5, cat: 'Mains' },
+          { name: 'Fish', price: 10, cat: 'Proteins' },
+          { name: 'Shrimps', price: 10, cat: 'Proteins' },
+          { name: 'Egg', price: 5, cat: 'Proteins' },
+          { name: 'Sausage', price: 5, cat: 'Sides' },
+          { name: 'Okro Soup', price: 5, cat: 'Soups' },
+          { name: 'Wele', price: 5, cat: 'Proteins' },
+          { name: 'Beef', price: 5, cat: 'Proteins' },
+          { name: 'Oily Rice', price: 10, cat: 'Mains' },
+          { name: 'Fried Yam', price: 5, cat: 'Sides' },
+          { name: 'Banku', price: 5, cat: 'Mains' },
+          { name: 'Kokonte', price: 5, cat: 'Mains' },
+        ]},
+        { name: "TINAD'S VENTURES", phone: '597581342', hours: '2:00PM-11:00PM', location: 'UMaT, Tarkwa - Hostel Area', img: '/food/OIP (1).webp', items: [
+          { name: 'Indomie', price: 30, cat: 'Mains' },
+          { name: 'Spaghetti', price: 30, cat: 'Mains' },
+          { name: 'Ice Cream', price: 5, cat: 'Desserts' },
+        ]},
+        { name: 'FOCUS', phone: '550195460', hours: '7:30AM-11:00PM', location: 'UMaT, Tarkwa - Lecture Courts', img: '/food/waakye.webp', items: [
+          { name: 'Chek Chek', price: 35, cat: 'Mains' },
+          { name: 'Jollof Rice (+Sausage/Egg/Chicken)', price: 35, cat: 'Mains' },
+          { name: 'Waakye Package', price: 25, cat: 'Combos' },
+          { name: 'Waakye (Rice)', price: 10, cat: 'Mains' },
+          { name: 'Fried Rice', price: 50, cat: 'Mains' },
+          { name: 'Assorted Fried Rice', price: 50, cat: 'Mains' },
+          { name: 'Chicken', price: 10, cat: 'Proteins' },
+          { name: 'Egg', price: 4, cat: 'Proteins' },
+          { name: 'Sausage', price: 4, cat: 'Sides' },
+          { name: 'Wele', price: 50, cat: 'Proteins' },
+          { name: 'Salad', price: 5, cat: 'Sides' },
+          { name: 'Spag & Gari', price: 5, cat: 'Snacks' },
+          { name: 'Plantain', price: 5, cat: 'Sides' },
+          { name: 'Pear', price: 5, cat: 'Sides' },
+        ]},
+        { name: 'CHEF ONE', phone: '530506391', hours: '12:00PM-12:00AM', location: 'UMaT, Tarkwa - Food Court', img: '/food/waakye.webp', items: [
+          { name: 'Fried Rice', price: 30, cat: 'Mains' },
+          { name: 'Jollof Rice', price: 30, cat: 'Mains' },
+          { name: 'Indomie', price: 30, cat: 'Mains' },
+          { name: 'Banku with Okro/Soup/Pepper', price: 30, cat: 'Combos' },
+          { name: 'Banku with Tilapia', price: 100, cat: 'Combos' },
+          { name: 'Emo Tuo with Groundnut Soup', price: 30, cat: 'Combos' },
+          { name: 'Fufu with Soup (Sundays)', price: 40, cat: 'Combos' },
+        ]},
+        { name: "ENO'S KITCHEN", phone: '244074521', hours: '11:00AM-12:00AM', location: 'UMaT, Tarkwa - Hostel Jct', img: '/food/fufu.jpg', items: [
+          { name: 'Fried Rice', price: 30, cat: 'Mains' },
+          { name: 'Jollof Rice', price: 40, cat: 'Mains' },
+          { name: 'Banku', price: 5, cat: 'Mains' },
+          { name: 'Emo Tuo', price: 5, cat: 'Mains' },
+          { name: 'Chicken', price: 15, cat: 'Proteins' },
+          { name: 'Wele', price: 5, cat: 'Proteins' },
+          { name: 'Fish', price: 15, cat: 'Proteins' },
+          { name: 'Sausage', price: 5, cat: 'Sides' },
+          { name: 'Towel (Meat)', price: 5, cat: 'Proteins' },
+          { name: 'Beef', price: 6, cat: 'Proteins' },
+          { name: 'Eggs', price: 3.5, cat: 'Proteins' },
+          { name: 'Light Soup', price: 0, cat: 'Soups' },
+          { name: 'Groundnut Soup', price: 0, cat: 'Soups' },
+        ]},
+        { name: "XANAB'S SPECIAL MEALS", phone: '244734333', hours: '9:00AM-6:00PM', location: 'UMaT, Tarkwa - Staff Quarters', img: '/food/fufu.jpg', items: [
+          { name: 'Banku', price: 5, cat: 'Mains' },
+          { name: 'TZ (Tuo Zaafi)', price: 5, cat: 'Mains' },
+          { name: 'Emo Tuo', price: 5, cat: 'Mains' },
+          { name: 'Abetsie', price: 5, cat: 'Mains' },
+          { name: 'Palm Nut Soup', price: 0, cat: 'Soups' },
+          { name: 'Ayoyo Soup', price: 0, cat: 'Soups' },
+          { name: 'Groundnut Soup', price: 0, cat: 'Soups' },
+          { name: 'Fish', price: 5, cat: 'Proteins' },
+          { name: 'Egg', price: 3, cat: 'Proteins' },
+          { name: 'Towel', price: 5, cat: 'Proteins' },
+          { name: 'Chicken Wings', price: 10, cat: 'Proteins' },
+          { name: 'Kotodwe', price: 15, cat: 'Proteins' },
+          { name: 'Wele', price: 5, cat: 'Proteins' },
+          { name: 'Beef', price: 5, cat: 'Proteins' },
+          { name: 'Gob3', price: 5, cat: 'Mains' },
+          { name: 'Plain Rice', price: 5, cat: 'Mains' },
+          { name: 'Plantain', price: 2, cat: 'Sides' },
+        ]},
+        { name: "MONICA'S FINEST PASTRY", phone: '530518207', hours: '7:00AM-2:00PM', location: 'UMaT, Tarkwa - Halls', img: '/food/th.webp', items: [
+          { name: 'Waakye (Rice)', price: 10, cat: 'Mains' },
+          { name: 'Waakye Fish', price: 10, cat: 'Proteins' },
+          { name: 'Waakye Chicken', price: 10, cat: 'Proteins' },
+          { name: 'Waakye Egg', price: 4, cat: 'Proteins' },
+          { name: 'Waakye Sausage', price: 5, cat: 'Sides' },
+          { name: 'Waakye T Towel', price: 10, cat: 'Proteins' },
+          { name: 'Waakye Salad/Gari/Macroni', price: 5, cat: 'Sides' },
+          { name: 'Waakye Plantain', price: 1, cat: 'Sides' },
+          { name: 'Kenkey', price: 5, cat: 'Mains' },
+          { name: 'Kenkey Fish', price: 10, cat: 'Proteins' },
+          { name: 'Kenkey Chicken', price: 10, cat: 'Proteins' },
+          { name: 'Kenkey Egg', price: 4, cat: 'Proteins' },
+          { name: 'Kenkey Sausage', price: 5, cat: 'Sides' },
+          { name: 'Kenkey T Towel', price: 10, cat: 'Proteins' },
+          { name: 'Kenkey Okro', price: 5, cat: 'Soups' },
+        ]},
+      ];
+
+      const FOOD_IMG_MAP: Record<string, string> = {
+        'kenkey':    '/food/kenkey.webp',
+        'jollof':    '/food/jollof.jpg',
+        'fufu':      '/food/fufu.jpg',
+        'fufu-soup': '/food/fufu-soup.webp',
+        'banku':     '/food/banku-tilapia.jpg',
+        'gob3':      '/food/gob3.webp',
+        'waakye':    '/food/waakye.webp',
+        'waakye-pkg':'/food/waakye-package.webp',
+        'tilapia':   '/food/banku-tilapia.jpg',
+        'rice':      '/food/jollof.jpg',
+        'fried-rice':'/food/fried-rice.webp',
+        'assorted-rice':'/food/assorted-fried-rice.webp',
+        'indomie':   '/food/indomie.webp',
+        'spaghetti': '/food/spaghetti.webp',
+        'shrimp':    '/food/fish.webp',
+        'egg':       '/food/egg.webp',
+        'sausage':   '/food/sausage.webp',
+        'chicken':   '/food/chicken.webp',
+        'fish':      '/food/fish.webp',
+        'yam':       '/food/fried-yam.webp',
+        'beef':      '/food/beef.webp',
+        'ice cream': '/food/download (3).webp',
+        'shwarma':   '/food/shawarma.webp',
+        'plantain':  '/food/plantain.webp',
+        'pear':      '/food/pear.webp',
+        'soup':      '/food/okro-soup.webp',
+        'emo tuo':   '/food/emo-tuo.webp',
+        'tz':        '/food/tz.webp',
+        'okro':      '/food/okro-soup.webp',
+        'tilapia-combo': '/food/banku-tilapia.webp',
+        'default':   '/food/jollof.jpg',
+      };
+
+      function coverImg(cat: string, name: string, fallback: string): string {
+        const lc = (cat + ' ' + name).toLowerCase();
+        const keys = Object.keys(FOOD_IMG_MAP).sort((a, b) => b.length - a.length);
+        for (const k of keys) {
+          if (lc.includes(k)) return FOOD_IMG_MAP[k];
+        }
+        return fallback;
+      }
+
+      const results: Record<string, { userId: string; vendorId: string; inserted: number }> = {};
+
+      for (const row of rows) {
+        const { data: user, error: userErr } = await supabase
+          .from('user')
+          .insert({
+            name: row.name,
+            email: `vendor+${Math.round(Math.random() * 1e9)}@campuschoo.app`,
+            passwordHash: '$pbkdf2-sha256$120000$' + Array.from(crypto.getRandomValues(new Uint8Array(22))).map(b => String.fromCharCode(33 + (b % 94))).join(''),
+            phone: '+233' + row.phone.replace(/^0+/, ''),
+            role: 'VENDOR',
+          })
+          .select()
+          .single();
+        if (userErr) { console.error('user err', row.name, userErr.message); continue; }
+
+        const { data: vendor, error: vendorErr } = await supabase
+          .from('vendor')
+          .insert({
+            userId: user.id,
+            storeName: row.name,
+            description: `${row.name} — ${row.hours}`,
+            location: row.location,
+            imageUrl: row.img,
+            isOpen: true,
+            rating: 4 + Math.floor(Math.random() * 15) / 10,
+            cuisine: [],
+          })
+          .select()
+          .single();
+        if (vendorErr) { console.error('vendor err', row.name, vendorErr.message); continue; }
+
+        const menuItems = row.items.map(it => ({
+          name: it.name,
+          description: '',
+          price: it.price,
+          category: it.cat,
+          imageUrl: coverImg(it.cat, it.name, row.img),
+          isAvailable: true,
+          vendorId: vendor.id,
+        }));
+
+        const { data: inserted, error: menuErr } = await supabase
+          .from('menuItem')
+          .insert(menuItems)
+          .select();
+        if (menuErr) console.error('menu err', row.name, menuErr.message);
+
+        results[row.name] = { userId: user.id, vendorId: vendor.id, inserted: inserted?.length ?? 0 };
+      }
+
+      return json({ ok: true, seeded: results }, 200);
+    } catch (err) {
+      console.error('Seed error:', err);
+      return json({ message: 'Seed failed.', error: String(err) }, 500);
+    }
+  }
+
+  if (req.method === 'POST' && path === '/seed/categories') {
+    const body = await bodyJson<{ key?: string }>(req);
+    const expectedKey = Deno.env.get('SEED_KEY');
+
+    if (!expectedKey || body.key !== expectedKey) {
+      return json({ message: 'Unauthorized. SEED_KEY mismatch.' }, 403);
+    }
+
+    try {
+      const CATEGORY_INFO: Record<string, { emoji: string; img: string; desc: string }> = {
+        'Mains':    { emoji: '🍚', img: '/food/jollof.jpg',       desc: 'Staple dishes — rice, banku, kokonte, fufu.' },
+        'Sides':    { emoji: '🍌', img: '/food/OIP.webp',        desc: 'Side orders — plantain, gari, sausage.' },
+        'Soups':    { emoji: '🍲', img: '/food/gob3.webp',       desc: 'Freshly cooked soups — okro, palmnut, groundnut.' },
+        'Drinks':   { emoji: '🥤', img: '/food/download (1).webp', desc: 'Soft drinks, juices & chilled beverages.' },
+        'Snacks':   { emoji: '🍕', img: '/food/download.webp',   desc: 'Pastries, shawarma, spring rolls & more.' },
+        'Desserts': { emoji: '🍦', img: '/food/download (3).webp', desc: 'Ice cream, cake & sweet treats.' },
+        'Proteins': { emoji: '🍗', img: '/food/waakye.webp',    desc: 'Grilled fish, chicken, beef, eggs.' },
+        'Combos':   { emoji: '🍱', img: '/food/kenkey.webp',    desc: 'Full meal combos with soup or stew.' },
+        'Breakfast':{ emoji: '🥚', img: '/food/th.webp',         desc: 'Morning meals — yam, eggs, tea.' },
+      };
+
+      const results: Record<string, string> = {};
+      for (const [cat, info] of Object.entries(CATEGORY_INFO)) {
+        const { data, error } = await supabase
+          .from('category')
+          .upsert({ name: cat, emoji: info.emoji, imageUrl: info.img, description: info.desc }, { onConflict: 'name' })
+          .select()
+          .single();
+        results[cat] = error ? `ERROR: ${error.message}` : (data?.id ?? 'ok');
+      }
+      return json({ ok: true, categories: results }, 200);
+    } catch (err) {
+      console.error('Category seed error:', err);
+      return json({ message: 'Category seed failed.', error: String(err) }, 500);
+    }
+  }
   if (req.method === 'POST' && path === '/admin/request-code') {
-    if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !ADMIN_PHONE) {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !ADMIN_PHONE || !SMS_API) {
       return json({ message: 'Admin login is not configured.' }, 503);
     }
     const { email, password } = await bodyJson<{ email?: string; password?: string }>(req);
@@ -426,6 +821,7 @@ async function routeAdmin(req: Request, path: string) {
       await sendSms(ADMIN_PHONE, message);
     } catch (e) {
       console.error('Failed to send admin SMS', e);
+      return json({ message: errorMessage(e) }, 502);
     }
 
     return json({ ok: true });
@@ -453,6 +849,88 @@ async function routeAdmin(req: Request, path: string) {
     return json({ accessToken, user }, 200);
   }
 
+  // SECURE ADMIN MANAGEMENT ROUTES
+  if (path.startsWith('/admin')) {
+    let user;
+    try {
+      user = await currentUser(req);
+    } catch {
+      return json({ message: 'Not authenticated.' }, 401);
+    }
+    if (user.role !== 'ADMIN') {
+      return json({ message: 'Forbidden: admin access required.' }, 403);
+    }
+
+    if (req.method === 'GET' && path === '/admin/stats') {
+      const { count: usersCount } = await supabase.from('user').select('*', { count: 'exact', head: true });
+      const { count: vendorsCount } = await supabase.from('vendor').select('*', { count: 'exact', head: true });
+      const { data: orders } = await supabase.from('order').select('totalAmount, status');
+      
+      const ordersCount = orders?.length ?? 0;
+      const totalRevenue = orders
+        ?.filter(o => o.status === 'DELIVERED')
+        ?.reduce((sum, o) => sum + Number(o.totalAmount), 0) ?? 0;
+
+      return json({
+        usersCount: usersCount ?? 0,
+        vendorsCount: vendorsCount ?? 0,
+        ordersCount,
+        totalRevenue,
+      });
+    }
+
+    if (req.method === 'GET' && path === '/admin/users') {
+      const { data, error } = await supabase.from('user').select('*').order('createdAt', { ascending: false });
+      if (error) throw error;
+      return json((data ?? []).map(safeUser));
+    }
+
+    if (req.method === 'GET' && path === '/admin/vendors') {
+      const { data, error } = await supabase.from('vendor').select('*, user(email, phone)');
+      if (error) throw error;
+      return json(data ?? []);
+    }
+
+    if (req.method === 'GET' && path === '/admin/orders') {
+      const { data, error } = await supabase.from('order')
+        .select('*, orderItem(menuItem(name, price)), vendor(storeName), user(name, phone)')
+        .order('createdAt', { ascending: false });
+      if (error) throw error;
+      return json(formatOrders(data ?? []));
+    }
+
+    const matchUserRole = path.match(/^\/admin\/users\/([^/]+)\/role$/);
+    if (req.method === 'PATCH' && matchUserRole) {
+      const userId = matchUserRole[1];
+      const { role } = await bodyJson<{ role?: Role }>(req);
+      if (!role || !['BUYER', 'VENDOR', 'ADMIN'].includes(role)) {
+        return json({ message: 'Valid role is required.' }, 400);
+      }
+      const { data, error } = await supabase.from('user').update({ role }).eq('id', userId).select().maybeSingle();
+      if (error) throw error;
+      return json(safeUser(data));
+    }
+
+    const matchVendorVerify = path.match(/^\/admin\/vendors\/([^/]+)\/verify$/);
+    if (req.method === 'PATCH' && matchVendorVerify) {
+      const vendorId = matchVendorVerify[1];
+      const { status } = await bodyJson<{ status?: 'APPROVED' | 'REJECTED' }>(req);
+      if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
+        return json({ message: 'status must be APPROVED or REJECTED.' }, 400);
+      }
+      const updateData: Record<string, any> = { verificationStatus: status };
+      if (status === 'APPROVED') {
+        updateData.verifiedAt = new Date().toISOString();
+      } else {
+        updateData.verifiedAt = null;
+      }
+      const { data, error } = await supabase.from('vendor').update(updateData).eq('id', vendorId).select().maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ message: 'Vendor not found.' }, 404);
+      return json(data);
+    }
+  }
+
   return null;
 }
 
@@ -461,6 +939,29 @@ async function routeVendors(req: Request, path: string, url: URL) {
     const { data, error } = await supabase.from('vendor').select('*').order('isOpen', { ascending: false }).order('rating', { ascending: false });
     if (error) throw error;
     return json(data ?? []);
+  }
+
+  if (req.method === 'POST' && path === '/vendors/verification') {
+    const user = await currentUser(req);
+    requireRole(user, 'VENDOR');
+    const { idType, idUrl, selfieUrl } = await bodyJson<{ idType?: string; idUrl?: string; selfieUrl?: string }>(req);
+    if (!idType || !idUrl || !selfieUrl) {
+      return json({ message: 'idType, idUrl and selfieUrl are required.' }, 400);
+    }
+    const valid = ['PASSPORT', 'GHANA_CARD', 'STUDENT_ID'];
+    if (!valid.includes(idType)) {
+      return json({ message: `idType must be one of: ${valid.join(', ')}.` }, 400);
+    }
+    const { data: vendor, error: getErr } = await supabase.from('vendor').select('*').eq('userId', user.id).maybeSingle();
+    if (getErr) throw getErr;
+    if (!vendor) return json({ message: 'Vendor record not found.' }, 404);
+    const { data, error: updateErr } = await supabase.from('vendor')
+      .update({ idType, idUrl, selfieUrl, verificationStatus: 'PENDING' })
+      .eq('userId', user.id)
+      .select()
+      .maybeSingle();
+    if (updateErr) throw updateErr;
+    return json(data);
   }
 
   if (req.method === 'GET' && path === '/vendors/me') {
@@ -515,6 +1016,9 @@ async function routeVendors(req: Request, path: string, url: URL) {
     if (error) throw error;
     if (!vendor) return json({ message: 'Vendor not found.' }, 404);
     if (user.role === 'VENDOR' && vendor.userId !== user.id) return json({ message: 'You do not own this vendor.' }, 403);
+    if (!vendor.isOpen && vendor.verificationStatus !== 'APPROVED') {
+      return json({ message: 'Your vendor account must be verified by an admin before you can open your store.' }, 403);
+    }
     const { data, error: updateErr } = await supabase.from('vendor').update({ isOpen: !vendor.isOpen }).eq('id', vendor.id).select().maybeSingle();
     if (updateErr) throw updateErr;
     return json(data);
@@ -684,8 +1188,8 @@ async function routeOrders(req: Request, path: string, url: URL) {
     const itemsSummary = lineItems.map((li) => `${menuItems?.find((m) => m.id === li.menuItemId)?.name ?? li.menuItemId} x${li.quantity}`).join(', ');
     const deliveryLabel = body.roomNumber ? `${body.deliverTo}, Room ${body.roomNumber}` : body.deliverTo;
     const { data: vendorUser } = await supabase.from('user').select('phone').eq('id', vendor.userId).maybeSingle();
-    if (buyer?.phone) sendSms(buyer.phone, `Hi! Your CampusChoo order ${orderId} from ${vendor.storeName} has been placed.`);
-    if (vendorUser?.phone) sendSms(vendorUser.phone, `New order ${orderId} on CampusChoo!\nItems: ${itemsSummary}\nDeliver to: ${deliveryLabel}`);
+    if (buyer?.phone) sendSmsQuietly(buyer.phone, `Hi! Your CampusChoo order ${orderId} from ${vendor.storeName} has been placed.`);
+    if (vendorUser?.phone) sendSmsQuietly(vendorUser.phone, `New order ${orderId} on CampusChoo!\nItems: ${itemsSummary}\nDeliver to: ${deliveryLabel}`);
 
     let paymentInit = null;
     let paymentInitError = null;
@@ -742,7 +1246,7 @@ async function routeOrders(req: Request, path: string, url: URL) {
       .select('*, orderItem(menuItem(name)), vendor(storeName), user(name, phone)')
       .maybeSingle();
     if (updateErr) throw updateErr;
-    if (status === 'DELIVERED' && order.user?.phone) sendSms(order.user.phone, `Your CampusChoo order ${statusPatch[1]} has been delivered!`);
+    if (status === 'DELIVERED' && order.user?.phone) sendSmsQuietly(order.user.phone, `Your CampusChoo order ${statusPatch[1]} has been delivered!`);
     return json(formatOrder(data));
   }
 

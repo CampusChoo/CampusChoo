@@ -17,6 +17,7 @@ const MUTED = '#9A8E85';
 const RECAPTCHA_SITE_KEY =
   (import.meta as unknown as { env?: { VITE_RECAPTCHA_SITE_KEY?: string } }).env?.VITE_RECAPTCHA_SITE_KEY
   ?? '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
+const RECAPTCHA_SCRIPT_SRC = 'https://www.google.com/recaptcha/api.js?render=explicit';
 
 declare global {
   interface Window {
@@ -146,19 +147,59 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   );
 }
 
-function Field({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+function Field({ label, type, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
+  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+
   return (
     <div style={{ marginBottom: 16 }}>
       <label style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.8px', color: MUTED, fontWeight: 600, marginBottom: 7, display: 'block' }}>
         {label}
       </label>
-      <input {...props} style={{
-        width: '100%', padding: '13px 16px',
-        border: `1.5px solid ${BORDER}`, borderRadius: 12,
-        background: 'rgba(255,255,255,0.05)', color: '#fff',
-        fontSize: 14, fontFamily: "'Inter', sans-serif",
-        outline: 'none', boxSizing: 'border-box',
-      }} />
+      <div style={{ position: 'relative' }}>
+        <input {...props} type={inputType} style={{
+          width: '100%', padding: isPassword ? '13px 44px 13px 16px' : '13px 16px',
+          border: `1.5px solid ${BORDER}`, borderRadius: 12,
+          background: 'rgba(255,255,255,0.05)', color: '#fff',
+          fontSize: 14, fontFamily: "'Inter', sans-serif",
+          outline: 'none', boxSizing: 'border-box',
+        }} />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{
+              position: 'absolute',
+              right: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              color: MUTED,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 4,
+            }}
+          >
+            {showPassword ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                <line x1="2" y1="2" x2="22" y2="22"/>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -187,27 +228,117 @@ function ErrorBox({ message }: { message: string }) {
 }
 
 function LoginForm({ redirect }: { redirect: string }) {
-  const { login } = useAuth();
+  const { login, forgotPassword, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [view, setView] = useState<'login' | 'forgot_phone' | 'forgot_reset'>('login');
+  const [phone, setPhone] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setErr(''); setLoading(true);
+    setErr(''); setSuccess(''); setLoading(true);
     const r = await login(email, password);
     setLoading(false);
     if (r.ok) navigate(redirect);
     else setErr(r.message ?? 'Login failed');
   }
 
+  async function handleSendCode(e: FormEvent) {
+    e.preventDefault();
+    setErr(''); setSuccess(''); setLoading(true);
+    const r = await forgotPassword(phone.trim());
+    setLoading(false);
+    if (r.ok && r.email) {
+      setResetEmail(r.email);
+      setView('forgot_reset');
+      setSuccess('Verification code sent to your registered phone number. Enter it below.');
+    } else {
+      setErr(r.message ?? 'Failed to send verification code.');
+    }
+  }
+
+  async function handleResetPassword(e: FormEvent) {
+    e.preventDefault();
+    setErr(''); setSuccess(''); setLoading(true);
+    const r = await resetPassword(resetEmail.trim(), resetCode.trim(), newPassword);
+    setLoading(false);
+    if (r.ok) {
+      setView('login');
+      setSuccess('Your password has been reset successfully! Please sign in.');
+      setPassword('');
+      setResetCode('');
+      setNewPassword('');
+      setPhone('');
+      setResetEmail('');
+    } else {
+      setErr(r.message ?? 'Password reset failed.');
+    }
+  }
+
+  if (view === 'forgot_phone') {
+    return (
+      <form onSubmit={handleSendCode}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 18, color: '#fff' }}>Reset Password</h3>
+        <p style={{ fontSize: 13, color: MUTED, marginBottom: 20, lineHeight: 1.5 }}>
+          Enter your registered phone number. We will verify your account and send a 6-digit security code to this number.
+        </p>
+        {err && <ErrorBox message={err} />}
+        {success && <div style={{ background: 'rgba(244,82,30,0.1)', border: '1px solid rgba(244,82,30,0.3)', borderRadius: 10, padding: 12, marginBottom: 12, color: ORANGE, fontSize: 13 }}>{success}</div>}
+        <Field label="Phone Number" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="024XXXXXXX or +233XXXXXXXXX" />
+        <SubmitBtn loading={loading}>Send Reset Code</SubmitBtn>
+        <button
+          type="button"
+          onClick={() => { setView('login'); setErr(''); setSuccess(''); }}
+          style={{ width: '100%', marginTop: 14, background: 'transparent', border: 'none', color: MUTED, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}
+        >
+          ← Back to Sign In
+        </button>
+      </form>
+    );
+  }
+
+  if (view === 'forgot_reset') {
+    return (
+      <form onSubmit={handleResetPassword}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 18, color: '#fff' }}>Enter Reset Code</h3>
+        {err && <ErrorBox message={err} />}
+        {success && <div style={{ background: 'rgba(244,82,30,0.1)', border: '1px solid rgba(244,82,30,0.3)', borderRadius: 10, padding: 12, marginBottom: 12, color: ORANGE, fontSize: 13 }}>{success}</div>}
+        <Field label="6-Digit Reset Code" type="text" required value={resetCode} onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ''))} placeholder="123456" maxLength={6} />
+        <Field label="New Password" type="password" required minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" />
+        <SubmitBtn loading={loading}>Reset Password</SubmitBtn>
+        <button
+          type="button"
+          onClick={() => { setView('forgot_phone'); setErr(''); setSuccess(''); }}
+          style={{ width: '100%', marginTop: 14, background: 'transparent', border: 'none', color: MUTED, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}
+        >
+          ← Resend Code
+        </button>
+      </form>
+    );
+  }
+
   return (
     <form onSubmit={submit}>
       {err && <ErrorBox message={err} />}
+      {success && <div style={{ background: 'rgba(244,82,30,0.1)', border: '1px solid rgba(244,82,30,0.3)', borderRadius: 10, padding: 12, marginBottom: 12, color: ORANGE, fontSize: 13 }}>{success}</div>}
       <Field label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@email.com" />
       <Field label="Password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6, marginBottom: 16 }}>
+        <button
+          type="button"
+          onClick={() => { setView('forgot_phone'); setErr(''); setSuccess(''); }}
+          style={{ background: 'transparent', border: 'none', color: ORANGE, fontSize: 13, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+        >
+          Forgot password?
+        </button>
+      </div>
       <SubmitBtn loading={loading}>Sign In →</SubmitBtn>
     </form>
   );
@@ -294,7 +425,7 @@ function RegisterForm({ redirect }: { redirect: string }) {
     setErr(''); setLoading(true);
     const r = await register({
       name: form.name, email: form.email, phone: form.phone, password: form.password,
-      role: form.role, level: form.level || undefined,
+      role: form.role, level: form.level || undefined, captchaToken: captchaToken ?? undefined,
     });
     setLoading(false);
     if (r.ok) navigate(redirect);
@@ -313,19 +444,27 @@ function RegisterForm({ redirect }: { redirect: string }) {
     setErr(''); setLoading(true);
     const r = await register({
       name: form.name, email: form.email, phone: form.phone, password: form.password,
-      role: form.role, storeName: form.storeName || undefined,
+      role: form.role, storeName: form.storeName || undefined, captchaToken: captchaToken ?? undefined,
     });
     if (!r.ok) { setLoading(false); setErr(r.message ?? 'Registration failed'); return; }
 
     try {
       const idUrl     = await uploadFile(verification.idFile, `id-${verification.idType.toLowerCase()}.jpg`);
       const selfieUrl = await uploadFile(verification.selfieBlob, 'selfie.jpg');
-      // TODO: POST { idType, idUrl, selfieUrl } to a /api/vendors/verification
-      // endpoint once the backend exposes it. For now we keep the URLs in
-      // localStorage so manual review tooling can pick them up.
-      localStorage.setItem('cc_pending_verification', JSON.stringify({
-        idType: verification.idType, idUrl, selfieUrl, submittedAt: Date.now(),
-      }));
+      
+      const vRes = await api('/api/vendors/verification', {
+        method: 'POST',
+        body: JSON.stringify({
+          idType: verification.idType,
+          idUrl,
+          selfieUrl,
+        }),
+      });
+      if (!vRes.ok) {
+        const body = await vRes.json().catch(() => ({}));
+        throw new Error(body.message ?? 'Failed to submit verification details.');
+      }
+
       setLoading(false);
       navigate(redirect);
     } catch (uploadErr) {
@@ -435,10 +574,23 @@ function TermsCheckbox({ checked, onChange }: { checked: boolean; onChange: (v: 
 function RecaptchaWidget({ onToken }: { onToken: (token: string | null) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<number | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
 
   useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
+
+    function ensureScript() {
+      if (document.querySelector(`script[src="${RECAPTCHA_SCRIPT_SRC}"]`)) return;
+      const script = document.createElement('script');
+      script.src = RECAPTCHA_SCRIPT_SRC;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => {
+        if (!cancelled) setStatus('failed');
+      };
+      document.head.appendChild(script);
+    }
 
     const tryRender = () => {
       if (cancelled) return;
@@ -447,14 +599,19 @@ function RecaptchaWidget({ onToken }: { onToken: (token: string | null) => void 
           widgetIdRef.current = window.grecaptcha.render(ref.current, {
             sitekey: RECAPTCHA_SITE_KEY,
             theme: 'dark',
-            callback: (token) => onToken(token),
+            callback: (token) => {
+              setStatus('ready');
+              onToken(token);
+            },
             'expired-callback': () => onToken(null),
           });
+          setStatus('ready');
         } catch { /* already rendered — ignore */ }
       } else {
         timer = window.setTimeout(tryRender, 250);
       }
     };
+    ensureScript();
     tryRender();
 
     return () => {
@@ -465,8 +622,16 @@ function RecaptchaWidget({ onToken }: { onToken: (token: string | null) => void 
   }, []);
 
   return (
-    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center', minHeight: 78, alignItems: 'center' }}>
       <div ref={ref} />
+      {status === 'loading' && (
+        <span style={{ color: MUTED, fontSize: 12 }}>Loading reCAPTCHA...</span>
+      )}
+      {status === 'failed' && (
+        <span style={{ color: '#fca5a5', fontSize: 12, textAlign: 'center' }}>
+          reCAPTCHA could not load. Check your connection or site key.
+        </span>
+      )}
     </div>
   );
 }

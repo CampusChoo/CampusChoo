@@ -153,15 +153,32 @@ function VendorCard({ vendor }: { vendor: Vendor }) {
     <Link to={`/menu?vendorId=${vendor.id}`} style={{
       background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 24, overflow: 'hidden',
       boxShadow: '0 2px 20px rgba(43,39,32,0.07)', textDecoration: 'none', color: 'inherit', display: 'block',
-    }}>
+      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(43,39,32,0.14)'; }}
+    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 20px rgba(43,39,32,0.07)'; }}
+    >
       <div style={{
-        height: 175, position: 'relative', overflow: 'hidden',
+        height: 180, position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 68, background: `linear-gradient(135deg, ${color}, ${color}cc)`,
+        fontSize: 68,
       }}>
         {vendor.imageUrl ? (
-          <img src={vendor.imageUrl} alt={vendor.storeName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : '🍽️'}
+          <img
+            src={vendor.imageUrl}
+            alt={vendor.storeName}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div style={{
+            width: '100%', height: '100%',
+            background: `linear-gradient(135deg, ${color}, ${color}cc)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>🍽️</span>
+          </div>
+        )}
         <div style={{
           position: 'absolute', top: 14, right: 14,
           background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
