@@ -125,6 +125,7 @@ function GoogleAuthSection({ redirect, mode }: { redirect: string; mode: 'login'
       {err && <ErrorBox message={err} />}
       <GoogleSignInButton
         text={mode === 'login' ? 'signin_with' : 'signup_with'}
+        promptOneTap={mode === 'login'}
         onCredential={async (idToken) => {
           setErr('');
           const r = await loginWithGoogle(idToken);

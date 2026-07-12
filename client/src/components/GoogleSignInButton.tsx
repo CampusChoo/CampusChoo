@@ -30,9 +30,11 @@ declare global {
 export default function GoogleSignInButton({
   onCredential,
   text = 'signin_with',
+  promptOneTap = true,
 }: {
   onCredential: (idToken: string) => void;
   text?: 'signin_with' | 'signup_with' | 'continue_with';
+  promptOneTap?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
@@ -53,6 +55,8 @@ export default function GoogleSignInButton({
         callback: (response) => onCredential(response.credential),
         auto_select: true,
       });
+      // Clear any previously rendered button so the text updates on tab switch.
+      containerRef.current!.innerHTML = '';
       window.google.accounts.id.renderButton(containerRef.current!, {
         theme: 'filled_black',
         size: 'large',
@@ -61,19 +65,22 @@ export default function GoogleSignInButton({
         shape: 'pill',
         width: containerRef.current!.offsetWidth || 320,
       });
-      // auto_select only fires through the One Tap prompt — invoke it.
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed?.()) {
-          console.warn('Google One Tap not displayed:', notification.getNotDisplayedReason?.());
-        } else if (notification.isSkippedMoment?.()) {
-          console.warn('Google One Tap skipped:', notification.getSkippedReason?.());
-        }
-      });
+      // One Tap auto sign-in only makes sense on the login tab — on register it
+      // would show "Sign in with <account>" which is confusing. Only fire it there.
+      if (promptOneTap) {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed?.()) {
+            console.warn('Google One Tap not displayed:', notification.getNotDisplayedReason?.());
+          } else if (notification.isSkippedMoment?.()) {
+            console.warn('Google One Tap skipped:', notification.getSkippedReason?.());
+          }
+        });
+      }
     };
     tryInit();
 
     return () => { mounted = false; };
-  }, [clientId, onCredential, text]);
+  }, [clientId, onCredential, text, promptOneTap]);
 
   if (!clientId) {
     return (

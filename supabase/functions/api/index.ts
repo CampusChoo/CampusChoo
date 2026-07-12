@@ -337,7 +337,8 @@ async function initializePayment(args: {
 
 async function routeAuth(req: Request, path: string) {
   if (req.method === 'POST' && path === '/auth/register') {
-    const { name, email, password, phone, role, level, storeName, captchaToken } = await bodyJson<Record<string, string>>(req);
+    const { name, email: rawEmail, password, phone, role, level, storeName, captchaToken } = await bodyJson<Record<string, string>>(req);
+    const email = rawEmail?.toLowerCase().trim();
     if (!name || !email || !password || !phone) return json({ message: 'name, email, password and phone are required.' }, 400);
     if (password.length < 6) return json({ message: 'Password must be at least 6 characters.' }, 400);
     const captcha = await verifyRecaptcha(captchaToken, req.headers.get('x-forwarded-for'));
@@ -378,7 +379,8 @@ async function routeAuth(req: Request, path: string) {
   }
 
   if (req.method === 'POST' && path === '/auth/login') {
-    const { email, password } = await bodyJson<{ email?: string; password?: string }>(req);
+    const { email: rawEmail, password } = await bodyJson<{ email?: string; password?: string }>(req);
+    const email = rawEmail?.toLowerCase().trim();
     if (!email || !password) return json({ message: 'email and password are required.' }, 400);
     const { data: user, error } = await supabase.from('user').select('*').eq('email', email).maybeSingle();
     if (error) throw error;
